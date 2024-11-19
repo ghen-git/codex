@@ -9,14 +9,13 @@ export interface Object {
     rotation: quat
 }
 
-export interface Triangle {
-    vertexIndexes: number[]
-}
+export type Triangle = vec3
 
 export interface VertexData {
     vertex: vec3,
     colour: vec4,
-    normal: vec3
+    normal: vec3,
+    additional?: {[id: string]: any}
 }
 
 export function init(canvas: HTMLCanvasElement, window: Window, settings: RendererSettings) {
@@ -40,7 +39,14 @@ export interface RendererSettings {
     backgroundColour: vec4,
     vertexShaderSource: string,
     fragmentShaderSource: string,
-    frame: (renderer: Renderer) => void
+    frame: (renderer: Renderer) => void,
+    projectionMatrix?: mat4,
+    additionalShaderData?: AdditionalShaderDataRegistering
+}
+
+export interface AdditionalShaderDataRegistering {
+    initBuffers: (renderer: Renderer, gl: WebGL2RenderingContext) => void
+    writeToBuffers: (renderer: Renderer, gl: WebGL2RenderingContext) => void
 }
 
 export class Renderer {
@@ -67,6 +73,8 @@ export class Renderer {
         this.gl.clearColor(bg[0], bg[1], bg[2], 1); // sets the value for the colour buffer bit
         this.gl.depthFunc(this.gl.LEQUAL); // sets the comparison to see if an object's z is closer than another to <=
         this.gl.enable(this.gl.DEPTH_TEST); // activates depth testing (closer triangles get rendered on top of further ones)
+        this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+        this.gl.enable(this.gl.BLEND);
 
         const program = this.createShaderProgram();
 
@@ -82,7 +90,7 @@ export class Renderer {
         this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
 
 
-        const projectionMatrix = this.createProjectionMatrix(70, 0.01, 100000);
+        const projectionMatrix = this.settings.projectionMatrix ? this.settings.projectionMatrix : this.createProjectionMatrix(70, 0.01, 100000);
 
         this.renderingData = {
             program: program,
@@ -106,6 +114,9 @@ export class Renderer {
             indexBuffer: indexBuffer,
             modelViewMatrixIndexBuffer: modelViewMatrixIndexBuffer
         }
+
+        if(this.settings.additionalShaderData !== undefined)
+            this.settings.additionalShaderData.initBuffers(this, this.gl);
 
         this.gl.useProgram(program);
         // needs to be called everytime the meshes change
@@ -162,6 +173,9 @@ export class Renderer {
     }
 
     updateModelViewMatrices() {
+        if(this.objects.length == 0)
+            return;
+
         const matricesBuffer: number[] = [];
 
         this.objects.forEach(obj => {
@@ -191,9 +205,10 @@ export class Renderer {
 
 
         this.gl.bindTexture(this.gl.TEXTURE_2D, this.renderingData!.shaderTextures.modelViewMatricesTexture);
+        
         const width = matricesBuffer.length / 16 > 4096 ? 4096 : matricesBuffer.length / 16;
         const height: number = matricesBuffer.length / (width * 4);
-        console.log(height);
+
         this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA32F, width, height, 0, this.gl.RGBA, this.gl.FLOAT, new Float32Array(matricesBuffer));
     }
 
@@ -216,7 +231,7 @@ export class Renderer {
                 colours.push(...data.colour);
             });
             obj.triangles.forEach(tri => {
-                tri.vertexIndexes.forEach(vertexIndex => {
+                tri.forEach(vertexIndex => {
                     indices.push(vertexIndex + triangleIndexOffset);
                 });
             });
@@ -232,6 +247,9 @@ export class Renderer {
         this.writeColourBuffer(colours);
         this.writeIndexBuffer(indices);
         this.writeModelViewMatrixIndexBuffer(modelViewMatrixIndices);
+        
+        if(this.settings.additionalShaderData !== undefined)
+            this.settings.additionalShaderData.writeToBuffers(this, this.gl);
     }
 
     /**

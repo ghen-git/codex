@@ -1,5 +1,6 @@
-import { rgbToScreenSpace } from "./math_ops";
-import { Triangle, VertexData } from "./renderer";
+import { vec3, vec4 } from "gl-matrix";
+import { axisAngleToQuat, rand, rgbToScreenSpace, toRad } from "./math_ops";
+import { Renderer, Triangle, VertexData } from "./renderer";
 
 const colours = {
     deep_dark_red: rgbToScreenSpace(79, 0, 11),
@@ -37,16 +38,53 @@ export const cubeVertices: VertexData[] = [
 ];
 
 export const cubeTriangles: Triangle[] = [
-    { vertexIndexes: [2, 0, 1] },
-    { vertexIndexes: [1, 3, 2] }, // bottom
-    { vertexIndexes: [16, 17, 18] },
-    { vertexIndexes: [17, 18, 19] }, // left
-    { vertexIndexes: [20, 21, 22] },
-    { vertexIndexes: [21, 22, 23] }, // right
-    { vertexIndexes: [6, 4, 5] },
-    { vertexIndexes: [5, 7, 6] }, // top
-    { vertexIndexes: [8, 9, 10] },
-    { vertexIndexes: [9, 10, 11] }, // front
-    { vertexIndexes: [12, 13, 14] },
-    { vertexIndexes: [13, 14, 15] }, // back
+    [2, 0, 1],
+    [1, 3, 2], // bottom
+    [16, 17, 18],
+    [17, 18, 19], // left
+    [20, 21, 22],
+    [21, 22, 23], // right
+    [6, 4, 5],
+    [5, 7, 6], // top
+    [8, 9, 10],
+    [9, 10, 11], // front
+    [12, 13, 14],
+    [13, 14, 15], // back
 ];
+
+export function moveCubesFrame(renderer: Renderer) {
+    // bare bones test for rotation with quaternions
+    renderer.objects.forEach((obj, i) => {
+        // obj.rotation = quatMul(obj.rotation, axisAngleToQuat([rand(0, 1), rand(0, 1), rand(0, 1), toRad(1)]));
+        // if (i % 5 == 0)
+        //     obj.rotation = quatMul(obj.rotation, axisAngleToQuat([1, 0, 0, toRad(1)]));
+        // const dir = quatToAxisAngle(obj.rotation);
+
+        // vec3.add(obj.position, obj.position, vec3.scale(vec3.create(), vec3.fromValues(dir[0], dir[1], dir[2]), obj.speed));
+        obj.position[2] += 0.1;
+
+        if (obj.position[2] > 20)
+            obj.position[2] -= 220;
+    });
+
+    renderer.updateModelViewMatrices();
+}
+
+export function generateCubeObjects()
+{
+    const cubes = [];
+    const size = 50;
+
+    for (let i = 0; i < 10000; i++) {
+        cubes.push({
+            triangles: cubeTriangles,
+            vertices: cubeVertices,
+            // position: vec3.fromValues(rand(-size * 2, size * 2), rand(-size, size), rand(-30, -size * 5)),
+            position: vec3.fromValues(rand(-size, size), rand(-size, size), rand(-30, -size * 5)),
+            rotation: axisAngleToQuat(vec4.fromValues(0, 0, 1, toRad(180))),
+            scale: /*rand(0, 10) < 1 ? vec3.fromValues(1, rand(5, 10), rand(2, 5)): */vec3.fromValues(1, 1, 10)
+        });
+    }
+
+    return cubes;
+}
