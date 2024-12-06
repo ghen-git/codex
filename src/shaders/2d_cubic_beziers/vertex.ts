@@ -28,11 +28,10 @@ void main() {
     gl_Position = uProjectionMatrix * aVertexPosition;
 
     vColour = aVertexColour;
-    pos = aVertexPosition.xy;
-
-    a = aA;
-    b = aB;
-    c = aC;
-    d = aD;
+      pos = gl_Position.xy;
+    a = (uProjectionMatrix * vec4(aA, 0, 1)).xy;
+    b = (uProjectionMatrix * vec4(aB, 0, 1)).xy;
+    c = (uProjectionMatrix * vec4(aC, 0, 1)).xy;
+    d = (uProjectionMatrix * vec4(aD, 0, 1)).xy;
 }
 `;

@@ -49,7 +49,7 @@ function initBezierRenderer() {
         }
     })!;
 
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 1; i++) {
         const startPos: vec2 = [randInt(0, window.innerWidth), randInt(0, window.innerHeight)];
 
         lines.push({

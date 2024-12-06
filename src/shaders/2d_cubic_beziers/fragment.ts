@@ -23,10 +23,16 @@ float min_distance_newton(vec2 p, vec2 a, vec2 b, vec2 c, vec2 d);
 void main() {
     float[8] coeffs = compute_coeffs(a, b, c, d);
 
-    if(min_distance_newton(pos, a, b, c, d) < 0.5)
-        fragColor = vec4(1);
+    if(distance(pos, a) < 0.005)
+        fragColor = vec4(0.5);
+    else if(distance(pos, b) < 0.005)
+        fragColor = vec4(0.5);
+    else if(distance(pos, c) < 0.005)
+        fragColor = vec4(0.5);
+    else if(distance(pos, d) < 0.005)
+        fragColor = vec4(0.5);
     else
-        fragColor = vec4(0);
+        fragColor = vec4(min_distance_newton(pos, a, b, c, d));
 
 }
 
@@ -53,38 +59,28 @@ float[8] compute_coeffs(vec2 a, vec2 b, vec2 c, vec2 d)
 float min_distance_newton(vec2 p, vec2 a, vec2 b, vec2 c, vec2 d) {
     float[8] coeffs = compute_coeffs(a, b, c, d);
 
-    int n_roots = 7;
-    float[7] roots = float[7](0.0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0);
+    int n_roots = 1;
+    float[1] roots = float[1](0.5);
 
     int steps = 5;
 
     for(int i = 0; i < steps; i++) {
         for(int j = 0; j < n_roots; j++) {
             float der_root = distance_derivative_derivative(roots[j], p, coeffs);
-            if(abs(der_root) > 1e-6)
-                roots[j] = roots[j] - distance_derivative(roots[j], p, coeffs)/der_root;
+            roots[j] = roots[j] - distance_derivative(roots[j], p, coeffs)/der_root;
         }
     }
 
     float min_root = distance_function(roots[0], p, coeffs);
-    if(roots[0] < 0.0 || roots[0] > 1.0)
-        min_root = 100000.0;
         
     for(int j = 1; j < n_roots; j++) {
-        if(roots[j] >= 0.0 && roots[j] <= 1.0) {
-            roots[j] = distance_function(roots[j], p, coeffs);
-            if(roots[j] < min_root)
-                min_root = roots[j];
-        }
+        roots[j] = distance_function(roots[j], p, coeffs);
+        if(roots[j] < min_root)
+            min_root = roots[j];
     }
 
     float dist_start = distance_function(0.0, p, coeffs);
     float dist_end = distance_function(1.0, p, coeffs);
-
-    if(dist_start < min_root)
-        min_root = dist_start;
-    if(dist_end < min_root)
-        min_root = dist_end;
 
     return min_root;
 }
@@ -130,8 +126,8 @@ float distance_derivative_derivative(float t, vec2 p, float[8] coeffs) {
     float f1y_t = 3.0*coeffs[4]*t_2 + 2.0*coeffs[5]*t + coeffs[6];
     float f2y_t = 6.0*coeffs[4]*t + 2.0*coeffs[5];
 
-    float x_component = 2.0 * ((fx_t - p.x) * f2x_t + f1x_t * f1x_t);
-    float y_component = 2.0 * ((fy_t - p.y) * f2y_t + f1y_t * f1y_t);
+    float x_component = 2.0 * (f1x_t * f2x_t + f1x_t * f1x_t);
+    float y_component = 2.0 * (f1y_t * f2y_t + f1y_t * f1y_t);
     
     return x_component + y_component;
 }
