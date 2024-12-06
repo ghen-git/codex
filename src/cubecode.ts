@@ -1,5 +1,5 @@
 import { vec3, vec4 } from "gl-matrix";
-import { axisAngleToQuat, rand, rgbToScreenSpace, toRad } from "./math_ops";
+import { axisAngleToQuat, quatMul, rand, rgbToScreenSpace, toRad } from "./math_ops";
 import { Renderer, Triangle, VertexData } from "./renderer";
 
 const colours = {
@@ -55,7 +55,7 @@ export const cubeTriangles: Triangle[] = [
 export function moveCubesFrame(renderer: Renderer) {
     // bare bones test for rotation with quaternions
     renderer.objects.forEach((obj, i) => {
-        // obj.rotation = quatMul(obj.rotation, axisAngleToQuat([rand(0, 1), rand(0, 1), rand(0, 1), toRad(1)]));
+        obj.rotation = quatMul(obj.rotation, axisAngleToQuat([rand(0, 1), rand(0, 1), rand(0, 1), toRad(1)]));
         // if (i % 5 == 0)
         //     obj.rotation = quatMul(obj.rotation, axisAngleToQuat([1, 0, 0, toRad(1)]));
         // const dir = quatToAxisAngle(obj.rotation);
@@ -64,7 +64,7 @@ export function moveCubesFrame(renderer: Renderer) {
         obj.position[2] += 0.1;
 
         if (obj.position[2] > 20)
-            obj.position[2] -= 220;
+            obj.position[2] -= 100;
     });
 
     renderer.updateModelViewMatrices();
@@ -73,16 +73,16 @@ export function moveCubesFrame(renderer: Renderer) {
 export function generateCubeObjects()
 {
     const cubes = [];
-    const size = 50;
+    const size = 30;
 
-    for (let i = 0; i < 10000; i++) {
+    for (let i = 0; i < 5000; i++) {
         cubes.push({
             triangles: cubeTriangles,
             vertices: cubeVertices,
             // position: vec3.fromValues(rand(-size * 2, size * 2), rand(-size, size), rand(-30, -size * 5)),
             position: vec3.fromValues(rand(-size, size), rand(-size, size), rand(-30, -size * 5)),
             rotation: axisAngleToQuat(vec4.fromValues(0, 0, 1, toRad(180))),
-            scale: /*rand(0, 10) < 1 ? vec3.fromValues(1, rand(5, 10), rand(2, 5)): */vec3.fromValues(1, 1, 10)
+            scale: /*rand(0, 10) < 1 ? vec3.fromValues(1, rand(5, 10), rand(2, 5)): */vec3.fromValues(1, 1, 1)
         });
     }
 

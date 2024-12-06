@@ -24,7 +24,7 @@ void main() {
     gl_Position = uProjectionMatrix * modelViewMatrix * aVertexPosition;
     
     float depthFog = gl_Position.w > 0.0 ? clamp(1.0 / (gl_Position.w) * 20.0, 0.0, 1.0) : 1.0;
-    vColour = (vec4(aVertexColour.z - 0.7, aVertexColour.y - 0.7, aVertexColour.x - 0.7, 1.0)) * vec4(depthFog, depthFog, depthFog, 1);
+    vColour = aVertexColour * vec4(depthFog, depthFog, depthFog, 1);
 }
 
 vec4 getValueByIndexFromTexture(sampler2D tex, int index) {

@@ -1,6 +1,6 @@
 export const fragmentShader = `#version 300 es
-#define BEZIER_WIDTH 10.0 * 0.0005
-#define BEZIER_HEIGHT 10.0 * 0.0005
+#define BEZIER_WIDTH 5.0 * 0.0005
+#define BEZIER_HEIGHT 5.0 * 0.0005
 precision highp float;
 
 in highp vec4 vColour;
@@ -83,7 +83,7 @@ void draw_bezier(vec2 a, vec2 b, vec2 c, bool inverse) {
             }
         }
     }
-    fragColor = vec4(normalize(b-a), 0, 1);
+    fragColor = vec4(0);
 }
 
 float find_delta(float a, float b, float c) {
