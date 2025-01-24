@@ -19,7 +19,7 @@ export interface VertexData {
 }
 
 export function init(canvas: HTMLCanvasElement, window: Window, settings: RendererSettings) {
-    const gl = canvas.getContext('webgl2');
+    const gl = canvas.getContext('webgl2', {antialias: true});
 
     if (gl == null) {
         console.error('unable to initialize WebGL');

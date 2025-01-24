@@ -22,7 +22,7 @@ interface ResizableBezier {
     resized: boolean
 }
 const lines: ResizableBezier[] = [];
-const bezierOffset = 100;
+const bezierOffset = 300;
 
 document.addEventListener('DOMContentLoaded', () => {
     canvas = stringToHTML(`<canvas></canvas>`) as HTMLCanvasElement;
@@ -49,7 +49,7 @@ function initBezierRenderer() {
         }
     })!;
 
-    for (let i = 0; i < 1; i++) {
+    for (let i = 0; i < 100; i++) {
         const startPos: vec2 = [randInt(0, window.innerWidth), randInt(0, window.innerHeight)];
 
         lines.push({

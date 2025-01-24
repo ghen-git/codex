@@ -18,31 +18,27 @@ float distance_derivative(float t, vec2 p, float[8] coeffs);
 float distance_derivative_derivative(float t, vec2 p, float[8] coeffs);
 vec2 point_on_cubic(float t, float[8] coeffs);
 float[8] compute_coeffs(vec2 a, vec2 b, vec2 c, vec2 d);
-float min_distance_newton(vec2 p, vec2 a, vec2 b, vec2 c, vec2 d, out vec2 min_root_pos, out float min_root); 
+float min_distance_newton(vec2 p, vec2 a, vec2 b, vec2 c, vec2 d); 
 
 void main() {
-    float[8] coeffs = compute_coeffs(a, b, c, d);
+    // anti aliasing support
+    vec2 pos1 = pos + vec2(0.25, 0.25);
+    vec2 pos2 = pos + vec2(0.75, 0.25);
+    vec2 pos3 = pos + vec2(0.25, 0.75);
+    vec2 pos4 = pos + vec2(0.75, 0.75);
 
-    if(distance(pos, a) < 5.0)
-        fragColor = vec4(0.5);
-    else if(distance(pos, b) < 5.0)
-        fragColor = vec4(0.5);
-    else if(distance(pos, c) < 5.0)
-        fragColor = vec4(0.5);
-    else if(distance(pos, d) < 5.0)
-        fragColor = vec4(0.5);
-    else {
-        vec2 min_root_pos;
-        float min_root;
+    float matches = 0.0;
 
-        if(min_distance_newton(pos, a, b, c, d, min_root_pos, min_root) < 5.0) 
-            fragColor = vec4(1);
-        else{
-            vec2 ray = normalize(pos - min_root_pos);
-            vec2 tangent = normalize(point_on_cubic(min_root + 0.1, coeffs) - min_root_pos);
-            fragColor = vec4(sign(dot(tangent, ray)), 0, 0, 1);
-        }
-    }
+    if(min_distance_newton(pos1, a, b, c, d) < 0.5) 
+        matches += 0.25;
+    if(min_distance_newton(pos2, a, b, c, d) < 0.5) 
+        matches += 0.25;
+    if(min_distance_newton(pos3, a, b, c, d) < 0.5) 
+        matches += 0.25;
+    if(min_distance_newton(pos4, a, b, c, d) < 0.5) 
+        matches += 0.25;
+
+    fragColor = vec4(matches);
 
 }
 
@@ -68,7 +64,7 @@ float[8] compute_coeffs(vec2 a, vec2 b, vec2 c, vec2 d)
 // check for sign changes beteween the intervals
 // in the intervals where a sign change occours, use netwtons method
 
-float min_distance_newton(vec2 p, vec2 a, vec2 b, vec2 c, vec2 d, out vec2 min_root_pos, out float min_root) {
+float min_distance_newton(vec2 p, vec2 a, vec2 b, vec2 c, vec2 d) {
     float[8] coeffs = compute_coeffs(a, b, c, d);   
 
     int n_roots = 7;
@@ -85,7 +81,7 @@ float min_distance_newton(vec2 p, vec2 a, vec2 b, vec2 c, vec2 d, out vec2 min_r
     }
 
     float min_distance = distance_function(roots[0], p, coeffs);
-    min_root = roots[0];
+    float min_root = roots[0];
     if(roots[0] < 0.0 || roots[0] > 1.0) {
         min_distance = 100000.0;
     }
@@ -107,14 +103,10 @@ float min_distance_newton(vec2 p, vec2 a, vec2 b, vec2 c, vec2 d, out vec2 min_r
 
     if(dist_start < min_distance) {
         min_distance = dist_start;
-        min_root_pos = a;
     }
     else if(dist_end < min_distance) {
         min_distance = dist_end;
-        min_root_pos = d;
     }
-    else 
-        min_root_pos = point_on_cubic(min_root, coeffs);
 
     return min_distance;
 }
