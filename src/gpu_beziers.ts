@@ -126,7 +126,9 @@ export class CubicBezier {
     }
 
     refreshApproximation() {
-        const points = segmentizeWithDeCasteljau({a: this.a, b: this.b, c: this.c, d: this.d}, 0.1);
+        const points = segmentizeWithDeCasteljau({a: this.a, b: this.b, c: this.c, d: this.d}, 0.01, 5);
+        points.push(this.d);
+        console.log(points.length);
 
         this.line.resize(points);
         this.quads = this.line.quads;
@@ -141,40 +143,28 @@ interface DeCastStep {
     d: vec2
 }
 
-function segmentizeWithDeCasteljau(start: DeCastStep, flatness: number) {
-    const points = [];
-    const stack = [start];
+function segmentizeWithDeCasteljau(bezier: DeCastStep, flatness: number, energy: number): vec2[] {
+    if(energy < 0)
+        return [bezier.a];
+
+    const lineLength = vec2.dist(bezier.a, bezier.d);
+    if(approxLength(bezier) - lineLength <= flatness)
+        return [bezier.a];
+
+    const points: vec2[] = [];
     
-    while(stack.length > 0) {
-        const bezier = stack.pop()!;
+    const ab = lerp(bezier.a, bezier.b, 0.5);
+    const bc = lerp(bezier.b, bezier.c, 0.5);
+    const cd = lerp(bezier.c, bezier.d, 0.5);
+    const abbc = lerp(ab, bc, 0.5);
+    const bccd = lerp(bc, cd, 0.5);
+    const abbccd = lerp(abbc, bccd, 0.5);
 
-        const ab = lerp(bezier.a, bezier.b, 0.5);
-        const bc = lerp(bezier.b, bezier.c, 0.5);
-        const cd = lerp(bezier.c, bezier.d, 0.5);
-        const abbc = lerp(ab, bc, 0.5);
-        const bccd = lerp(bc, cd, 0.5);
-        const abbccd = lerp(abbc, bccd, 0.5);
-
-        const sub1 = {a: bezier.a, b: ab, c: abbc, d: abbccd};
-        const sub1LineLength = vec2.dist(sub1.a, sub1.d);
-
-        if(approxLength(sub1) - sub1LineLength > flatness)
-            stack.push(sub1);
-        else {
-            points.push(sub1.a);
-            points.push(sub1.d);
-        }
-
-        const sub2 = {a: abbccd, b: bccd, c: cd, d: bezier.d};
-        const sub2LineLength = vec2.dist(sub2.a, sub2.d);
-
-        if(approxLength(sub2) - sub2LineLength > flatness)
-            stack.push(sub2);
-        else {
-            points.push(sub2.a);
-            points.push(sub2.d);
-        }
-    }
+    const sub1 = {a: bezier.a, b: ab, c: abbc, d: abbccd};
+    const sub2 = {a: abbccd, b: bccd, c: cd, d: bezier.d};
+    
+    points.push(...segmentizeWithDeCasteljau(sub1, flatness, energy - 1));
+    points.push(...segmentizeWithDeCasteljau(sub2, flatness, energy - 1));
 
     return points;
 }

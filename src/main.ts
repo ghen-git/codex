@@ -62,11 +62,11 @@ function initBezierRenderer() {
 
         lines.push({
             bezier: new CubicBezier(
-                vec2.add(vec2.create(), startPos, [randInt(-bezierOffset, bezierOffset), randInt(-bezierOffset, bezierOffset)]), 
-                vec2.add(vec2.create(), startPos, [randInt(-bezierOffset, bezierOffset), randInt(-bezierOffset, bezierOffset)]),
-                vec2.add(vec2.create(), startPos, [randInt(-bezierOffset, bezierOffset), randInt(-bezierOffset, bezierOffset)]),
-                vec2.add(vec2.create(), startPos, [randInt(-bezierOffset, bezierOffset), randInt(-bezierOffset, bezierOffset)]), 
-                rgbToScreenSpace(255, 255, 255), 4
+                vec2.add(vec2.create(), startPos, [0, 0]), 
+                vec2.add(vec2.create(), startPos, [0, 0]),
+                vec2.add(vec2.create(), startPos, [300, 300]),
+                vec2.add(vec2.create(), startPos, [300, 300]), 
+                rgbToScreenSpace(255, 255, 255), 30
             ),
             resized: false
         });
