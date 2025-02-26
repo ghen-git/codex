@@ -18,7 +18,7 @@ export interface VertexData {
     additional?: {[id: string]: any}
 }
 
-export function init(canvas: HTMLCanvasElement, window: Window, settings: RendererSettings) {
+export function init(canvas: HTMLCanvasElement, window: Window, backgroundColour: vec4, drawCalls: DrawCall[]) {
     const gl = canvas.getContext('webgl2', {antialias: true});
 
     if (gl == null) {
@@ -26,7 +26,7 @@ export function init(canvas: HTMLCanvasElement, window: Window, settings: Render
         return;
     }
 
-    const renderer = new Renderer(gl, canvas, window, settings);
+    const renderer = new Renderer(gl, canvas, window, backgroundColour, drawCalls);
 
     return renderer;
 }
@@ -39,43 +39,83 @@ export interface RendererSettings {
     backgroundColour: vec4,
     vertexShaderSource: string,
     fragmentShaderSource: string,
-    frame: (renderer: Renderer) => void,
+    frame: (drawCall: DrawCall) => void,
     projectionMatrix?: mat4,
     additionalShaderData?: AdditionalShaderDataRegistering
 }
 
 export interface AdditionalShaderDataRegistering {
-    initBuffers: (renderer: Renderer, gl: WebGL2RenderingContext) => void
-    writeToBuffers: (renderer: Renderer, gl: WebGL2RenderingContext) => void
+    initBuffers: (drawCall: DrawCall, gl: WebGL2RenderingContext) => void
+    writeToBuffers: (drawCall: DrawCall, gl: WebGL2RenderingContext) => void
 }
 
 export class Renderer {
     public gl: WebGL2RenderingContext;
     private canvas: HTMLCanvasElement;
     private window: Window;
-    public renderingData?: { [id: string]: any };
-    public objects: Object[];
-    private settings: RendererSettings;
+    private drawCalls: DrawCall[];
+    private backgroundColour: vec4;
 
-    constructor(gl: WebGL2RenderingContext, canvas: HTMLCanvasElement, window: Window, settings: RendererSettings) {
+    constructor(gl: WebGL2RenderingContext, canvas: HTMLCanvasElement, window: Window, backgroundColour: vec4, drawCalls: DrawCall[]) {
         this.gl = gl;
         this.canvas = canvas;
         this.window = window;
-        this.objects = [];
-        this.settings = settings;
+        this.drawCalls = drawCalls;
+        this.backgroundColour = backgroundColour;
     }
 
     /**
      * starts the renderer (and the loop that re-renders the scene every frame)
      */
     start() {
-        const bg = this.settings.backgroundColour;
-        this.gl.clearColor(bg[0], bg[1], bg[2], 1); // sets the value for the colour buffer bit
+        const bg = this.backgroundColour;
+        this.gl.clearColor(0, 0, 0, 0); // sets the value for the colour buffer bit
         this.gl.depthFunc(this.gl.LEQUAL); // sets the comparison to see if an object's z is closer than another to <=
         this.gl.enable(this.gl.DEPTH_TEST); // activates depth testing (closer triangles get rendered on top of further ones)
         this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
         this.gl.enable(this.gl.BLEND);
 
+        this.drawCalls.forEach(d => d.setup(this.gl));
+        this.loopOnAnimationFrame();
+    }
+
+    renderFrame() {
+        this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT) // clears buffers selected by a mask to a preset value
+
+        this.drawCalls.forEach(d => d.renderFrame());
+    }
+
+    /**
+     * adds a call to the renderframe function of this renderer to the animation frame
+     */
+    loopOnAnimationFrame() {
+        this.window.requestAnimationFrame(() => {
+            this.renderFrame();
+            this.loopOnAnimationFrame();
+        });
+    }
+}
+
+export class DrawCall {
+    public gl: WebGL2RenderingContext;
+    private window: Window;
+    public renderingData?: { [id: string]: any };
+    public objects: Object[];
+    private settings: RendererSettings;
+
+    constructor(window: Window, settings: RendererSettings) {
+        this.window = window;
+        this.objects = [];
+        this.settings = settings;
+        // @ts-expect-error
+        this.gl = undefined;
+    }
+
+    /**
+     * setup for the draw call (and the loop that re-renders the scene every frame)
+     */
+    setup(gl: WebGL2RenderingContext) {
+        this.gl = gl;
         const program = this.createShaderProgram();
 
         const positionBuffer = this.gl.createBuffer();
@@ -127,7 +167,6 @@ export class Renderer {
         this.gl.uniform1i(this.renderingData!.shaderUniforms.modelViewMatricesTexture, 0);
         this.gl.uniformMatrix4fv(this.renderingData!.shaderUniforms.projectionMat, false, this.renderingData!.projectionMat);
         this.updateModelViewMatrices();
-        this.loopOnAnimationFrame();
     }
 
     /**
@@ -163,7 +202,8 @@ export class Renderer {
     }
 
     renderFrame() {
-        this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT) // clears buffers selected by a mask to a preset value
+        this.gl.useProgram(this.renderingData!.program);
+        this.bindBuffers();
 
         this.settings.frame(this);
 
@@ -320,14 +360,27 @@ export class Renderer {
         this.gl.enableVertexAttribArray(modelViewMatrixIndexAttr);
     }
 
-    /**
-     * adds a call to the renderframe function of this renderer to the animation frame
-     */
-    loopOnAnimationFrame() {
-        this.window.requestAnimationFrame(() => {
-            this.renderFrame();
-            this.loopOnAnimationFrame();
-        });
+    bindBuffers() {
+        const positionBuffer = this.renderingData!.positionBuffer;
+        const vertexPositionAttr = this.renderingData!.shaderAttrs.vertexPositionAttr;
+        const colourBuffer = this.renderingData!.colourBuffer;
+        const vertexColourAttr = this.renderingData!.shaderAttrs.vertexColourAttr;
+        const normalBuffer = this.renderingData!.normalBuffer;
+        const vertexNormalAttr = this.renderingData!.shaderAttrs.vertexNormalAttr;
+        const modelViewMatrixIndexBuffer = this.renderingData!.modelViewMatrixIndexBuffer;
+        const modelViewMatrixIndexAttr = this.renderingData!.shaderAttrs.modelViewMatrixIndexAttr;
+
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, positionBuffer);
+        this.gl.vertexAttribPointer(vertexPositionAttr, 4, this.gl.FLOAT, false, 0, 0);
+
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, colourBuffer);
+        this.gl.vertexAttribPointer(vertexColourAttr, 4, this.gl.FLOAT, false, 0, 0);
+
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, normalBuffer);
+        this.gl.vertexAttribPointer(vertexNormalAttr, 4, this.gl.FLOAT, false, 0, 0);
+
+        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, modelViewMatrixIndexBuffer);
+        this.gl.vertexAttribPointer(modelViewMatrixIndexAttr, 1, this.gl.FLOAT, false, 0, 0);
     }
 
     /**

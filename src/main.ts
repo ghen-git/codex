@@ -1,10 +1,12 @@
 import './style.css';
 import { stringToHTML } from './modules/util';
-import { init, Renderer } from './renderer';
+import { DrawCall, init, Renderer } from './renderer';
 import { vertexShader as quadVertex } from './shaders/2d_quad_beziers/vertex';
 import { fragmentShader as quadFragment } from './shaders/2d_quad_beziers/fragment';
-import { vertexShader as cubicVertex } from './shaders/2d_cubic_beziers/vertex';
-import { fragmentShader as cubicFragment } from './shaders/2d_cubic_beziers/fragment';
+import { vertexShader as lineQuadsVertex } from './shaders/2d_flat_quads/vertex';
+import { fragmentShader as lineQuadsFragment } from './shaders/2d_flat_quads/fragment';
+import { vertexShader as lineCirclesVertex } from './shaders/2d_flat_circles/vertex';
+import { fragmentShader as lineCirclesFragment } from './shaders/2d_flat_circles/fragment';
 import { vertexShader as cubeVertex } from './shaders/3d_rendering/vertex';
 import { fragmentShader as cubeFragment } from './shaders/3d_rendering/fragment';
 import { axisAngleToQuat, quatMul, quatToAxisAngle, rand, randInt, rgbToScreenSpace, toRad } from './math_ops';
@@ -13,7 +15,6 @@ import { mat4, quat, vec2, vec3, vec4 } from 'gl-matrix';
 import { CubicBezier, QuadraticBezier } from './gpu_beziers';
 
 let canvas: HTMLCanvasElement;
-let renderer: Renderer;
 
 //#region cubic beziers
 
@@ -30,26 +31,33 @@ document.addEventListener('DOMContentLoaded', () => {
     resizeCanvas();
     
     // renderer = initCubeRenderer();
-    renderer = initBezierRenderer();
-
+    const drawCalls = initBezierRenderer();
+    const renderer = init(canvas, window, rgbToScreenSpace(17, 17, 17), drawCalls)!;
 
     renderer.start();
 });
 
 function initBezierRenderer() {
-    const renderer = init(canvas, window, {
+    const quadsDrawCall = new DrawCall(window, {
         backgroundColour: rgbToScreenSpace(17, 17, 17),
-        vertexShaderSource: cubicVertex,
-        fragmentShaderSource: cubicFragment,
-        frame: frame,
+        vertexShaderSource: lineQuadsVertex,
+        fragmentShaderSource: lineQuadsFragment,
+        frame: quadFrame,
+        projectionMatrix: createProjectionMatrix2d(),
+    });
+    const circlesDrawCall = new DrawCall(window, {
+        backgroundColour: rgbToScreenSpace(17, 17, 17),
+        vertexShaderSource: lineCirclesVertex,
+        fragmentShaderSource: lineCirclesFragment,
+        frame: circleFrame,
         projectionMatrix: createProjectionMatrix2d(),
         additionalShaderData: {
             initBuffers: initAdditionalBuffers,
             writeToBuffers: writeToAdditionalBuffers
         }
-    })!;
+    });
 
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 1; i++) {
         const startPos: vec2 = [randInt(0, window.innerWidth), randInt(0, window.innerHeight)];
 
         lines.push({
@@ -57,86 +65,68 @@ function initBezierRenderer() {
                 vec2.add(vec2.create(), startPos, [randInt(-bezierOffset, bezierOffset), randInt(-bezierOffset, bezierOffset)]), 
                 vec2.add(vec2.create(), startPos, [randInt(-bezierOffset, bezierOffset), randInt(-bezierOffset, bezierOffset)]),
                 vec2.add(vec2.create(), startPos, [randInt(-bezierOffset, bezierOffset), randInt(-bezierOffset, bezierOffset)]),
-                vec2.add(vec2.create(), startPos, [randInt(-bezierOffset, bezierOffset), randInt(-bezierOffset, bezierOffset)]), rgbToScreenSpace(255, 255, 255)),
+                vec2.add(vec2.create(), startPos, [randInt(-bezierOffset, bezierOffset), randInt(-bezierOffset, bezierOffset)]), 
+                rgbToScreenSpace(255, 255, 255), 4
+            ),
             resized: false
         });
-        renderer.objects.push(lines[i].bezier.obj);
+
+        quadsDrawCall.objects.push(lines[i].bezier.quads);
+        circlesDrawCall.objects.push(lines[i].bezier.circles);
     }
     
-    return renderer;
+    return [quadsDrawCall, circlesDrawCall];
 }
 
 function initCubeRenderer() {
-    const renderer = init(canvas, window, {
+    const cubesDrawCall = new DrawCall(window, {
         backgroundColour: rgbToScreenSpace(17, 17, 17),
         vertexShaderSource: cubeVertex,
         fragmentShaderSource: cubeFragment,
         frame: moveCubesFrame
-    })!;
+    })!;    
 
-    renderer.objects = generateCubeObjects();
-    return renderer;
+    cubesDrawCall.objects = generateCubeObjects();
+    return [cubesDrawCall];
 }
 
-function initAdditionalBuffers(renderer: Renderer, gl: WebGL2RenderingContext) {
-    const aBuffer = gl.createBuffer();
-    const bBuffer = gl.createBuffer();
-    const cBuffer = gl.createBuffer();
-    const dBuffer = gl.createBuffer();
+function initAdditionalBuffers(drawCall: DrawCall, gl: WebGL2RenderingContext) {
+    const uvBuffer = gl.createBuffer();
 
-    const program = renderer.renderingData!.program;
-    renderer.renderingData!.shaderAttrs.aAttr = gl.getAttribLocation(program, "aA");
-    renderer.renderingData!.shaderAttrs.bAttr = gl.getAttribLocation(program, "aB");
-    renderer.renderingData!.shaderAttrs.cAttr = gl.getAttribLocation(program, "aC");
-    renderer.renderingData!.shaderAttrs.dAttr = gl.getAttribLocation(program, "aD");
-    renderer.renderingData!.aBuffer = aBuffer;
-    renderer.renderingData!.bBuffer = bBuffer;
-    renderer.renderingData!.cBuffer = cBuffer;
-    renderer.renderingData!.dBuffer = dBuffer;
+    const program = drawCall.renderingData!.program;
+    drawCall.renderingData!.shaderAttrs.uvAttr = gl.getAttribLocation(program, "aUV");
+    drawCall.renderingData!.uvBuffer = uvBuffer;
 }
 
-function writeToAdditionalBuffers(renderer: Renderer, gl: WebGL2RenderingContext) {
+function writeToAdditionalBuffers(drawCall: DrawCall, gl: WebGL2RenderingContext) {
+    const uvs: number[] = [];
 
-    const as: number[] = [], bs: number[] = [], cs: number[] = [], ds: number[] = [];
-
-    renderer.objects.forEach(obj => obj.vertices.forEach(vertex => {
-        as.push(...vertex.additional!.a);
-        bs.push(...vertex.additional!.b);
-        cs.push(...vertex.additional!.c);
-        ds.push(...vertex.additional!.d);
+    drawCall.objects.forEach(obj => obj.vertices.forEach(vertex => {
+        uvs.push(...vertex.additional!.uv);
     }));
 
-    const aAttr = renderer.renderingData!.shaderAttrs.aAttr;
-    const bAttr = renderer.renderingData!.shaderAttrs.bAttr;
-    const cAttr = renderer.renderingData!.shaderAttrs.cAttr;
-    const dAttr = renderer.renderingData!.shaderAttrs.dAttr;
-    const aBuffer = renderer.renderingData!.aBuffer;
-    const bBuffer = renderer.renderingData!.bBuffer;
-    const cBuffer = renderer.renderingData!.cBuffer;
-    const dBuffer = renderer.renderingData!.dBuffer;
+    const uvAttr = drawCall.renderingData!.shaderAttrs.uvAttr;
+    const uvBuffer = drawCall.renderingData!.uvBuffer;
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, aBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(as), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(aAttr, 2, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(aAttr);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, bBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(bs), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(bAttr, 2, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(bAttr);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, cBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cs), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(cAttr, 2, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(cAttr);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, dBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(ds), gl.STATIC_DRAW);
-    gl.vertexAttribPointer(dAttr, 2, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(dAttr);
+    gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvs), gl.STATIC_DRAW);
+    gl.vertexAttribPointer(uvAttr, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(uvAttr);
 }
 
-function frame() {
+function quadFrame(drawCall: DrawCall) {
+    let updateBuffer = false;
+    lines.forEach(line => {
+        if (line.resized) {
+            updateBuffer = true;
+        }
+    })
+
+    if (updateBuffer)
+        drawCall.writeObjectsToVertexBuffer();
+}
+
+function circleFrame(drawCall: DrawCall) {
     let updateBuffer = false;
     lines.forEach(line => {
         if (line.resized) {
@@ -146,7 +136,7 @@ function frame() {
     })
 
     if (updateBuffer)
-        renderer.writeObjectsToVertexBuffer();
+        drawCall.writeObjectsToVertexBuffer();
 }
 
 window.addEventListener('mousedown', e => {

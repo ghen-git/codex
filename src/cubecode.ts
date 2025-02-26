@@ -1,6 +1,6 @@
 import { vec3, vec4 } from "gl-matrix";
 import { axisAngleToQuat, quatMul, rand, rgbToScreenSpace, toRad } from "./math_ops";
-import { Renderer, Triangle, VertexData } from "./renderer";
+import { DrawCall, Renderer, Triangle, VertexData } from "./renderer";
 
 const colours = {
     deep_dark_red: rgbToScreenSpace(79, 0, 11),
@@ -52,9 +52,9 @@ export const cubeTriangles: Triangle[] = [
     [13, 14, 15], // back
 ];
 
-export function moveCubesFrame(renderer: Renderer) {
+export function moveCubesFrame(drawCall: DrawCall) {
     // bare bones test for rotation with quaternions
-    renderer.objects.forEach((obj, i) => {
+    drawCall.objects.forEach((obj, i) => {
         obj.rotation = quatMul(obj.rotation, axisAngleToQuat([rand(0, 1), rand(0, 1), rand(0, 1), toRad(1)]));
         // if (i % 5 == 0)
         //     obj.rotation = quatMul(obj.rotation, axisAngleToQuat([1, 0, 0, toRad(1)]));
@@ -67,7 +67,7 @@ export function moveCubesFrame(renderer: Renderer) {
             obj.position[2] -= 100;
     });
 
-    renderer.updateModelViewMatrices();
+    drawCall.updateModelViewMatrices();
 }
 
 export function generateCubeObjects()

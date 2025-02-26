@@ -1,5 +1,6 @@
 import { quat, vec2, vec3, vec4 } from "gl-matrix";
 import { Object } from "./renderer";
+import { Line, LineEnding, Polyline } from "./line";
 
 
 export class QuadraticBezier {
@@ -68,20 +69,31 @@ export class QuadraticBezier {
 }
 
 export class CubicBezier {
-    obj: Object;
+    quads: Object;
+    circles: Object;
     public a: vec2;
     public b: vec2;
     public c: vec2;
     public d: vec2;
     colour: vec4;
+    thickness: number;
+    line: Polyline;
 
-    constructor(a: vec2, b: vec2, c: vec2, d: vec2, colour: vec4) {
+    constructor(a: vec2, b: vec2, c: vec2, d: vec2, colour: vec4, thickness: number) {
         this.a = a;
         this.b = b;
         this.c = c;
         this.d = d;
         
-        this.obj = {
+        this.quads = {
+            triangles: [],
+            vertices: [],
+            position: vec3.create(),
+            rotation: quat.create(),
+            scale: vec3.fromValues(1, 1, 1)
+        };
+        
+        this.circles = {
             triangles: [],
             vertices: [],
             position: vec3.create(),
@@ -90,6 +102,8 @@ export class CubicBezier {
         };
 
         this.colour = colour;
+        this.thickness = thickness;
+        this.line = new Polyline([[0,0], [0,0]], LineEnding.ROUND, colour, thickness);
 
         this.refreshApproximation();
     }
@@ -97,114 +111,85 @@ export class CubicBezier {
     public resize(newValues: { a?: vec2, b?: vec2, c?: vec2, d?: vec2 }) {
         if (newValues.a !== undefined) {
             this.a = newValues.a;
-            this.obj.vertices.forEach(v => v.additional!.a = this.a);
         }
         if (newValues.b !== undefined) {
             this.b = newValues.b;
-            this.obj.vertices.forEach(v => v.additional!.b = this.b);
         }
         if (newValues.c !== undefined) {
             this.c = newValues.c;
-            this.obj.vertices.forEach(v => v.additional!.c = this.c);
         }
         if (newValues.d !== undefined) {
             this.d = newValues.d;
-            this.obj.vertices.forEach(v => v.additional!.d = this.d);
         }
 
         this.refreshApproximation();
     }
 
-    buildQuads(nQuads: number) {
-        for(let i = 0; i < nQuads; i++) {
-            const quadI = i * 4;
-
-            this.obj.triangles.push(
-                [quadI, quadI + 1, quadI + 2],
-                [quadI + 2, quadI + 3, quadI + 1]
-            );
-
-            this.obj.vertices.push(
-                { vertex: vec3.create(), colour: this.colour, normal: vec3.create(), additional: {a: this.a, b: this.b, c: this.c, d: this.d} },
-                { vertex: vec3.create(), colour: this.colour, normal: vec3.create(), additional: {a: this.a, b: this.b, c: this.c, d: this.d} },
-                { vertex: vec3.create(), colour: this.colour, normal: vec3.create(), additional: {a: this.a, b: this.b, c: this.c, d: this.d} },
-                { vertex: vec3.create(), colour: this.colour, normal: vec3.create(), additional: {a: this.a, b: this.b, c: this.c, d: this.d} }
-            );
-        }
-    }
-
-    approxLength(coeffs: number[], accurancy: number) {
-        const stepSize = 1 / accurancy;
-
-        let prevPoint: vec2 = this.a;
-        let currPoint: vec2;
-        let length = 0;
-        let distX, distY;
-
-        for(let t = 0; t < 1; t += stepSize) {
-            currPoint = pointOnCubic(t, coeffs);
-
-            distX = currPoint[0] - prevPoint[0];
-            distY = currPoint[1] - prevPoint[1];
-            length += distX*distX + distY*distY;
-
-            prevPoint = currPoint;
-        }
-
-        return Math.sqrt(length);
-    }
-
-    cachedSteps: number = 0;
-
     refreshApproximation() {
-        const coeffs = cubicCoefficients(this.a, this.b, this.c, this.d);
-        const length = this.approxLength(coeffs, 5);
-        const steps = Math.ceil(length / 100) * 8;
+        const points = segmentizeWithDeCasteljau({a: this.a, b: this.b, c: this.c, d: this.d}, 0.1);
 
-        if(this.cachedSteps != steps) {
-            this.obj.triangles = [];
-            this.obj.vertices = [];
+        this.line.resize(points);
+        this.quads = this.line.quads;
+        this.circles = this.line.circles;
+    }
+}
 
-            this.buildQuads(steps);
-            this.cachedSteps = steps;
+interface DeCastStep {
+    a: vec2,
+    b: vec2,
+    c: vec2,
+    d: vec2
+}
+
+function segmentizeWithDeCasteljau(start: DeCastStep, flatness: number) {
+    const points = [];
+    const stack = [start];
+    
+    while(stack.length > 0) {
+        const bezier = stack.pop()!;
+
+        const ab = lerp(bezier.a, bezier.b, 0.5);
+        const bc = lerp(bezier.b, bezier.c, 0.5);
+        const cd = lerp(bezier.c, bezier.d, 0.5);
+        const abbc = lerp(ab, bc, 0.5);
+        const bccd = lerp(bc, cd, 0.5);
+        const abbccd = lerp(abbc, bccd, 0.5);
+
+        const sub1 = {a: bezier.a, b: ab, c: abbc, d: abbccd};
+        const sub1LineLength = vec2.dist(sub1.a, sub1.d);
+
+        if(approxLength(sub1) - sub1LineLength > flatness)
+            stack.push(sub1);
+        else {
+            points.push(sub1.a);
+            points.push(sub1.d);
         }
 
-        const thickness = 3;
+        const sub2 = {a: abbccd, b: bccd, c: cd, d: bezier.d};
+        const sub2LineLength = vec2.dist(sub2.a, sub2.d);
 
-        let prevPoint: vec2 = this.a;
-        let currPoint: vec2;
-        let tStep = 1 / steps;
-        let quadIndex = 0;
-
-        for(let t = tStep; quadIndex < steps * 4; t += tStep) {
-            currPoint = pointOnCubic(t, coeffs);
-            if(quadIndex == 29)
-                currPoint = this.d;
-
-            const quadNormal = vec2.fromValues(-(currPoint[1] - prevPoint[1]), currPoint[0] - prevPoint[0]);
-            vec2.normalize(quadNormal, quadNormal);
-            vec2.scale(quadNormal, quadNormal, thickness);
-
-            // top left
-            this.obj.vertices[quadIndex].vertex[0] = prevPoint[0] + quadNormal[0];
-            this.obj.vertices[quadIndex].vertex[1] = prevPoint[1] + quadNormal[1];
-            
-            // top right
-            this.obj.vertices[quadIndex + 1].vertex[0] = currPoint[0] + quadNormal[0];
-            this.obj.vertices[quadIndex + 1].vertex[1] = currPoint[1] + quadNormal[1];
-
-            // bottom left
-            this.obj.vertices[quadIndex + 2].vertex[0] = prevPoint[0] - quadNormal[0];
-            this.obj.vertices[quadIndex + 2].vertex[1] = prevPoint[1] - quadNormal[1];
-            
-            // bottom right
-            this.obj.vertices[quadIndex + 3].vertex[0] = currPoint[0] - quadNormal[0];
-            this.obj.vertices[quadIndex + 3].vertex[1] = currPoint[1] - quadNormal[1];
-
-            quadIndex += 4;
-            prevPoint = currPoint;
+        if(approxLength(sub2) - sub2LineLength > flatness)
+            stack.push(sub2);
+        else {
+            points.push(sub2.a);
+            points.push(sub2.d);
         }
     }
+
+    return points;
+}
+
+function lerp(p1: vec2, p2: vec2, t: number) {
+    return vec2.fromValues(
+        (1-t)*p1[0] + p2[0]*t,
+        (1-t)*p1[1] + p2[1]*t,
+    );
+}
+
+function approxLength(bezier: DeCastStep) {
+    return vec2.dist(bezier.a, bezier.b) +
+        vec2.dist(bezier.b, bezier.c) +
+        vec2.dist(bezier.c, bezier.d);
 }
 
 function cubicCoefficients(a: vec2, b: vec2, c: vec2, d: vec2) {
