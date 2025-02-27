@@ -6,7 +6,8 @@ export interface Object {
     vertices: VertexData[],
     position: vec3,
     scale: vec3,
-    rotation: quat
+    rotation: quat,
+    listReference?: LinkedListNode<Object>
 }
 
 export type Triangle = vec3
@@ -16,6 +17,73 @@ export interface VertexData {
     colour: vec4,
     normal: vec3,
     additional?: {[id: string]: any}
+}
+
+class LinkedListNode<T> {
+    prev: LinkedListNode<T> | null;
+    next: LinkedListNode<T> | null;
+    value: T;
+
+    constructor(value: T) {
+        this.value = value;
+        this.prev = null;
+        this.next = null;
+    }
+
+    remove() {
+        if(this.prev !== null)
+            this.prev.next = this.next;
+        if(this.next !== null)
+            this.next.prev = this.prev;
+    }
+}
+
+class LinkedList<T> {
+    start: LinkedListNode<T> | null;
+    end: LinkedListNode<T> | null;
+    length: number;
+    constructor() {
+        this.start = null;
+        this.end = null;
+        this.length = 0;
+    }
+
+    push(nodeValue: T) {
+        const node = new LinkedListNode(nodeValue);
+
+        if(this.start == null) {
+            this.start = node;
+            this.end = node;
+        }
+        else {
+            this.end!.next = node;
+            node.prev = this.end;
+            this.end = node;
+        }
+        length++;
+        return node;
+    }
+
+    remove(node: LinkedListNode<T>) {
+        if(node == this.start) {
+            this.start = node.next;
+        }
+        else if(node == this.end) {
+            this.end = node.prev;
+        }
+
+        length--;
+        node.remove();
+    }
+
+    forEach(iterationCallback: (value: T, i: number, node: LinkedListNode<T>) => void) {
+        let i = 0;
+        let currNode = this.start;
+        while(currNode != null) {
+            iterationCallback(currNode.value, i, currNode);
+            currNode = currNode.next;
+        }
+    }
 }
 
 export function init(canvas: HTMLCanvasElement, window: Window, backgroundColour: vec4, drawCalls: DrawCall[]) {
@@ -39,7 +107,7 @@ export interface RendererSettings {
     backgroundColour: vec4,
     vertexShaderSource: string,
     fragmentShaderSource: string,
-    frame: (drawCall: DrawCall) => void,
+    frame?: (drawCall: DrawCall) => void,
     projectionMatrix?: mat4,
     additionalShaderData?: AdditionalShaderDataRegistering
 }
@@ -100,12 +168,13 @@ export class DrawCall {
     public gl: WebGL2RenderingContext;
     private window: Window;
     public renderingData?: { [id: string]: any };
-    public objects: Object[];
+    public objects: LinkedList<Object>;
     private settings: RendererSettings;
+    private shouldUpdateBuffers: boolean = false;
 
     constructor(window: Window, settings: RendererSettings) {
         this.window = window;
-        this.objects = [];
+        this.objects = new LinkedList();
         this.settings = settings;
         // @ts-expect-error
         this.gl = undefined;
@@ -169,6 +238,17 @@ export class DrawCall {
         this.updateModelViewMatrices();
     }
 
+    addObject(obj: Object) {
+        const node = this.objects.push(obj);
+        obj.listReference = node;
+        this.shouldUpdateBuffers = true;
+    }
+
+    removeObject(obj: Object) {
+        this.objects.remove(obj.listReference!);
+        this.shouldUpdateBuffers = true;
+    }
+
     /**
      * initializes the shader program
      */
@@ -205,7 +285,11 @@ export class DrawCall {
         this.gl.useProgram(this.renderingData!.program);
         this.bindBuffers();
 
-        this.settings.frame(this);
+        if(this.settings.frame)
+            this.settings.frame(this);
+
+        if(this.shouldUpdateBuffers)
+            this.writeObjectsToVertexBuffer();
 
         // draw call
         this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.renderingData!.indexBuffer); // binds indices buffer
