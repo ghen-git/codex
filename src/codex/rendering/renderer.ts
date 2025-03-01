@@ -1,5 +1,5 @@
 import { mat4, quat, vec3, vec4 } from 'gl-matrix';
-import { quaternionToRotationMatrix, rgbToScreenSpace, toRad } from './math_ops';
+import { quaternionToRotationMatrix, toRad } from '../../math_ops';
 
 export interface Object {
     triangles: Triangle[],
@@ -16,7 +16,7 @@ export interface VertexData {
     vertex: vec3,
     colour: vec4,
     normal: vec3,
-    additional?: {[id: string]: any}
+    additional?: { [id: string]: any }
 }
 
 class LinkedListNode<T> {
@@ -31,9 +31,9 @@ class LinkedListNode<T> {
     }
 
     remove() {
-        if(this.prev !== null)
+        if (this.prev !== null)
             this.prev.next = this.next;
-        if(this.next !== null)
+        if (this.next !== null)
             this.next.prev = this.prev;
     }
 }
@@ -51,7 +51,7 @@ class LinkedList<T> {
     push(nodeValue: T) {
         const node = new LinkedListNode(nodeValue);
 
-        if(this.start == null) {
+        if (this.start == null) {
             this.start = node;
             this.end = node;
         }
@@ -60,26 +60,26 @@ class LinkedList<T> {
             node.prev = this.end;
             this.end = node;
         }
-        length++;
+        this.length++;
         return node;
     }
 
     remove(node: LinkedListNode<T>) {
-        if(node == this.start) {
+        if (node == this.start) {
             this.start = node.next;
         }
-        else if(node == this.end) {
+        else if (node == this.end) {
             this.end = node.prev;
         }
 
-        length--;
+        this.length--;
         node.remove();
     }
 
     forEach(iterationCallback: (value: T, i: number, node: LinkedListNode<T>) => void) {
         let i = 0;
         let currNode = this.start;
-        while(currNode != null) {
+        while (currNode != null) {
             iterationCallback(currNode.value, i, currNode);
             currNode = currNode.next;
         }
@@ -87,7 +87,7 @@ class LinkedList<T> {
 }
 
 export function init(canvas: HTMLCanvasElement, window: Window, backgroundColour: vec4, drawCalls: DrawCall[]) {
-    const gl = canvas.getContext('webgl2', {antialias: true});
+    const gl = canvas.getContext('webgl2', { antialias: true });
 
     if (gl == null) {
         console.error('unable to initialize WebGL');
@@ -97,10 +97,6 @@ export function init(canvas: HTMLCanvasElement, window: Window, backgroundColour
     const renderer = new Renderer(gl, canvas, window, backgroundColour, drawCalls);
 
     return renderer;
-}
-
-function randInt(min: number, max: number) {
-    return Math.random() * (max - min) + (min);
 }
 
 export interface RendererSettings {
@@ -136,7 +132,7 @@ export class Renderer {
      * starts the renderer (and the loop that re-renders the scene every frame)
      */
     start() {
-        const bg = this.backgroundColour;
+        // const bg = this.backgroundColour;
         this.gl.clearColor(0, 0, 0, 0); // sets the value for the colour buffer bit
         this.gl.depthFunc(this.gl.LEQUAL); // sets the comparison to see if an object's z is closer than another to <=
         this.gl.enable(this.gl.DEPTH_TEST); // activates depth testing (closer triangles get rendered on top of further ones)
@@ -150,7 +146,11 @@ export class Renderer {
     renderFrame() {
         this.gl.clear(this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT) // clears buffers selected by a mask to a preset value
 
-        this.drawCalls.forEach(d => d.renderFrame());
+        this.drawCalls.forEach(d => {
+            if (d.objects.length > 0 || d.shouldUpdateBuffers) {
+                d.renderFrame()
+            }
+        });
     }
 
     /**
@@ -170,7 +170,7 @@ export class DrawCall {
     public renderingData?: { [id: string]: any };
     public objects: LinkedList<Object>;
     private settings: RendererSettings;
-    private shouldUpdateBuffers: boolean = false;
+    shouldUpdateBuffers: boolean = false;
 
     constructor(window: Window, settings: RendererSettings) {
         this.window = window;
@@ -224,7 +224,7 @@ export class DrawCall {
             modelViewMatrixIndexBuffer: modelViewMatrixIndexBuffer
         }
 
-        if(this.settings.additionalShaderData !== undefined)
+        if (this.settings.additionalShaderData !== undefined)
             this.settings.additionalShaderData.initBuffers(this, this.gl);
 
         this.gl.useProgram(program);
@@ -285,11 +285,13 @@ export class DrawCall {
         this.gl.useProgram(this.renderingData!.program);
         this.bindBuffers();
 
-        if(this.settings.frame)
+        if (this.settings.frame)
             this.settings.frame(this);
 
-        if(this.shouldUpdateBuffers)
+        if (this.shouldUpdateBuffers) {
             this.writeObjectsToVertexBuffer();
+            this.shouldUpdateBuffers = false;
+        }
 
         // draw call
         this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.renderingData!.indexBuffer); // binds indices buffer
@@ -297,7 +299,7 @@ export class DrawCall {
     }
 
     updateModelViewMatrices() {
-        if(this.objects.length == 0)
+        if (this.objects.length == 0)
             return;
 
         const matricesBuffer: number[] = [];
@@ -329,7 +331,7 @@ export class DrawCall {
 
 
         this.gl.bindTexture(this.gl.TEXTURE_2D, this.renderingData!.shaderTextures.modelViewMatricesTexture);
-        
+
         const width = matricesBuffer.length / 16 > 4096 ? 4096 : matricesBuffer.length / 16;
         const height: number = matricesBuffer.length / (width * 4);
 
@@ -371,8 +373,8 @@ export class DrawCall {
         this.writeColourBuffer(colours);
         this.writeIndexBuffer(indices);
         this.writeModelViewMatrixIndexBuffer(modelViewMatrixIndices);
-        
-        if(this.settings.additionalShaderData !== undefined)
+
+        if (this.settings.additionalShaderData !== undefined)
             this.settings.additionalShaderData.writeToBuffers(this, this.gl);
     }
 

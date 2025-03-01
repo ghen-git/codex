@@ -1,4 +1,4 @@
-import { mat4, quat, vec3, vec4 } from "gl-matrix";
+import { mat4, quat, vec2, vec3, vec4 } from "gl-matrix";
 
 /**
  * translates a rotation expressed in the axis angle format to
@@ -101,4 +101,56 @@ export function rand(min: number, max: number) {
 
 export function randInt(min: number, max: number) {
     return Math.floor(Math.random() * (max - min) + (min));
+}
+
+export function createProjectionMatrix2d() {
+    return mat4.fromValues(
+        2 / window.innerWidth, 0, 0, 0,
+        0, -2 / window.innerHeight, 0, 0,
+        0, 0, 1, 0,
+        -1, 1, 0, 1
+    );
+}
+
+export function findBoundsOfPoints(points: vec2[]) {
+    let minX = points[0][0], maxX = points[0][0], minY = points[0][1], maxY = points[0][1];
+
+    points.forEach(p => {
+        if(p[0] < minX)
+            minX = p[0];
+        else if(p[0] > maxX)
+            maxX = p[0];
+        if(p[1] < minY)
+            minY = p[1];
+        else if(p[1] > maxY)
+            maxY = p[1];
+    })
+
+    return [minX, minY, maxX, maxY]
+}
+
+export function magnitude(v: vec2): number {
+    return distance([0, 0], v);
+}
+
+
+export function normalize(v: vec2): vec2 {
+    const magn = magnitude(v);
+    return [
+        v[0] / magn,
+        v[1] / magn
+    ]
+}
+
+export function vecFrom2Points(p1: vec2, p2: vec2) {
+    return vec2.sub(vec2.create(), p2, p1);
+}
+
+export function distance(v1: vec2, v2: vec2) {
+    const diff = [v2[0] - v1[0], v2[1] - v1[1]];
+    return Math.sqrt(diff[0]*diff[0] + diff[1]*diff[1]);
+}
+
+export function rotate180(v: vec2) {
+    return [-v[0], -v[1]];
 }

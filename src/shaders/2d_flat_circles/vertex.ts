@@ -7,6 +7,7 @@ in vec4 aVertexColour;
 in vec4 aVertexNormal;
 
 in vec2 aUV;
+in float aRadius;
 
 in float aModelViewMatrixIndex;
 
@@ -15,6 +16,7 @@ uniform sampler2D uModelViewMatricesTexture;
 
 out highp vec4 vColour;
 out highp vec2 uvPos;
+out highp float radius;
 
 void main() {
     gl_Position = uProjectionMatrix * aVertexPosition;
@@ -22,5 +24,6 @@ void main() {
     vColour = aVertexColour;
 
     uvPos = aUV;
+    radius = aRadius;
 }
 `;
