@@ -1,5 +1,6 @@
 import { mat4, quat, vec3, vec4 } from 'gl-matrix';
 import { quaternionToRotationMatrix, toRad } from '../../math_ops';
+import { LinkedList, LinkedListNode } from '../linked_list';
 
 export interface Object {
     triangles: Triangle[],
@@ -17,73 +18,6 @@ export interface VertexData {
     colour: vec4,
     normal: vec3,
     additional?: { [id: string]: any }
-}
-
-class LinkedListNode<T> {
-    prev: LinkedListNode<T> | null;
-    next: LinkedListNode<T> | null;
-    value: T;
-
-    constructor(value: T) {
-        this.value = value;
-        this.prev = null;
-        this.next = null;
-    }
-
-    remove() {
-        if (this.prev !== null)
-            this.prev.next = this.next;
-        if (this.next !== null)
-            this.next.prev = this.prev;
-    }
-}
-
-class LinkedList<T> {
-    start: LinkedListNode<T> | null;
-    end: LinkedListNode<T> | null;
-    length: number;
-    constructor() {
-        this.start = null;
-        this.end = null;
-        this.length = 0;
-    }
-
-    push(nodeValue: T) {
-        const node = new LinkedListNode(nodeValue);
-
-        if (this.start == null) {
-            this.start = node;
-            this.end = node;
-        }
-        else {
-            this.end!.next = node;
-            node.prev = this.end;
-            this.end = node;
-        }
-        this.length++;
-        return node;
-    }
-
-    remove(node: LinkedListNode<T>) {
-        if (node == this.start) {
-            this.start = node.next;
-        }
-        else if (node == this.end) {
-            this.end = node.prev;
-        }
-
-        this.length--;
-        node.remove();
-    }
-
-    forEach(iterationCallback: (value: T, i: number, node: LinkedListNode<T>) => void) {
-        let i = 0;
-        let currNode = this.start;
-        while (currNode != null) {
-            iterationCallback(currNode.value, i, currNode);
-            currNode = currNode.next;
-        }
-    }
 }
 
 export function init(canvas: HTMLCanvasElement, window: Window, backgroundColour: vec4, drawCalls: DrawCall[]) {
@@ -113,6 +47,11 @@ export interface AdditionalShaderDataRegistering {
     writeToBuffers: (drawCall: DrawCall, gl: WebGL2RenderingContext) => void
 }
 
+export enum BlendFunction {
+    NORMAL,
+    PRESERVE_ALPHA
+}
+
 export class Renderer {
     public gl: WebGL2RenderingContext;
     private canvas: HTMLCanvasElement;
@@ -135,7 +74,7 @@ export class Renderer {
         // const bg = this.backgroundColour;
         this.gl.clearColor(0, 0, 0, 0); // sets the value for the colour buffer bit
         this.gl.depthFunc(this.gl.LEQUAL); // sets the comparison to see if an object's z is closer than another to <=
-        this.gl.enable(this.gl.DEPTH_TEST); // activates depth testing (closer triangles get rendered on top of further ones)
+        this.gl.disable(this.gl.DEPTH_TEST); // activates depth testing (closer triangles get rendered on top of further ones)
         this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
         this.gl.enable(this.gl.BLEND);
 
@@ -170,12 +109,14 @@ export class DrawCall {
     public renderingData?: { [id: string]: any };
     public objects: LinkedList<Object>;
     private settings: RendererSettings;
+    private blendFunction: BlendFunction;
     shouldUpdateBuffers: boolean = false;
 
-    constructor(window: Window, settings: RendererSettings) {
+    constructor(window: Window, settings: RendererSettings, blendFunction: BlendFunction) {
         this.window = window;
         this.objects = new LinkedList();
         this.settings = settings;
+        this.blendFunction = blendFunction;
         // @ts-expect-error
         this.gl = undefined;
     }
@@ -293,7 +234,6 @@ export class DrawCall {
             this.shouldUpdateBuffers = false;
         }
 
-        // draw call
         this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.renderingData!.indexBuffer); // binds indices buffer
         this.gl.drawElements(this.gl.TRIANGLES, this.renderingData!.vertexIndices, this.gl.UNSIGNED_INT, 0);
     }

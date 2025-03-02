@@ -1,5 +1,5 @@
 import { rgbToScreenSpace, createProjectionMatrix2d } from '../../math_ops';
-import { DrawCall } from './renderer';
+import { BlendFunction, DrawCall } from './renderer';
 import * as FlatCircles from './flat_circles';
 import { vertexShader as lineQuadsVertex } from '../../shaders/2d_flat_quads/vertex';
 import { fragmentShader as lineQuadsFragment } from '../../shaders/2d_flat_quads/fragment';
@@ -15,7 +15,7 @@ export function setupDrawCalls() {
         vertexShaderSource: lineQuadsVertex,
         fragmentShaderSource: lineQuadsFragment,
         projectionMatrix: createProjectionMatrix2d(),
-    });
+    }, BlendFunction.NORMAL);
 
     flatCirclesDrawCall = new DrawCall(window, {
         backgroundColour: rgbToScreenSpace(17, 17, 17),
@@ -26,5 +26,5 @@ export function setupDrawCalls() {
             initBuffers: FlatCircles.initAdditionalBuffers,
             writeToBuffers: FlatCircles.writeToAdditionalBuffers
         }
-    });
+    }, BlendFunction.PRESERVE_ALPHA);
 }

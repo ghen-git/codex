@@ -1,12 +1,12 @@
 import { vec2, vec4 } from "gl-matrix";
 import { LineEnding, Polyline } from "./lines";
-
-const tEpsilon = 0.0001;
+import { EPSILON } from "../math_ops";
 
 export class CubicBezier {
     colour: vec4;
     thickness: number;
     line: Polyline;
+
     private _startT: number;
     public get startT(): number {
         return this._startT;
@@ -97,17 +97,16 @@ export class CubicBezier {
 
         const coeffs = cubicCoefficients(this.a, this.b, this.c, this.d);
 
-        if(Math.abs(selectedTs[0] - this._startT) > tEpsilon) {
+        if(Math.abs(selectedTs[0] - this._startT) > EPSILON) {
             const newStart = pointOnCubic(this._startT, coeffs);
             points = [newStart, ...points];
         }
         
-        if(Math.abs(selectedTs[selectedTs.length - 1] - this._endT) > tEpsilon) {
+        if(Math.abs(selectedTs[selectedTs.length - 1] - this._endT) > EPSILON) {
             const newEnd = pointOnCubic(this._endT, coeffs);
             points = [...points, newEnd];
         }
         
-        console.log(segments, points);
         this.line.changePoints(points);
     }
 }

@@ -1,5 +1,7 @@
 import { mat4, quat, vec2, vec3, vec4 } from "gl-matrix";
 
+export const EPSILON = 0.0001;
+
 /**
  * translates a rotation expressed in the axis angle format to
  * a quaternion

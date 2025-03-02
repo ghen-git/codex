@@ -3,8 +3,9 @@ import { stringToHTML } from './modules/util';
 import { vec2, vec4 } from 'gl-matrix';
 import { setupRenderer } from './codex/rendering/renderer_setup';
 import { CubicBezier } from './codex/beziers';
-import { normalize, vecFrom2Points } from './math_ops';
-import { Line, LineEnding } from './codex/lines';
+import { rand, randInt, vecFrom2Points } from './math_ops';
+import { LineEnding } from './codex/lines';
+import { BezierPath } from './codex/paths';
 
 let canvas: HTMLCanvasElement;
 
@@ -14,52 +15,72 @@ document.addEventListener('DOMContentLoaded', () => {
     resizeCanvas();
     setupRenderer(canvas);
 
-    requestAnimationFrame(stepAnimation);
+    for(let i = 0; i < 20; i++)
+        randomCardinalSpline();
+
+    requestAnimationFrame(stepAnimations);
 });
 
-const step = 0.01;
-let animationState = 0.0;
+const step = 0.025;
+const nBeziers = 5;
+const lineTLength = 1;
+const thickness = 16;
 
-function stepAnimation() {
-    requestAnimationFrame(stepAnimation);
+interface Animation {
+    stepFunction: (anim: Animation) => void;
+    progress: number;
+    spline: BezierPath;
+}
 
-    if (spline.length <= 0)
-        return;
+const animations: Animation[] = [];
 
-    const animationStateEnd = (animationState + 1.0) % 10;
-    const animStateStartI = Math.floor(animationState);
-    const animStateEndI = Math.floor(animationStateEnd);
-    const startBezier = spline[animStateStartI];
-    const endBezier = spline[animStateEndI];
+function randomCardinalSpline() {
+    const points = [];
 
-    startBezier.startT = animationState % 1;
-    startBezier.endT = 1.0;
-    endBezier.startT = 0.0;
-    endBezier.endT = animationStateEnd % 1;
+    for(let i = 0; i < nBeziers + 1; i++) {
+        points.push(vec2.fromValues(randInt(0, window.innerWidth), randInt(0, window.innerHeight)));
+    }
 
-    animationState += step;
-    if(animationState > 10)
-        animationState = 0;
+    animations.push({
+        stepFunction: (anim: Animation) => {
+            const animationStateEnd = (anim.progress + lineTLength) % nBeziers;
+            anim.spline.setTBounds(anim.progress, animationStateEnd);
+        },
+        progress: 0.0,
+        spline: cardinalSpline(points)
+    });
+}
+
+function stepAnimations() {
+    requestAnimationFrame(stepAnimations);
+
+    animations.forEach(anim => {
+        anim.stepFunction(anim);
+
+        anim.progress += step;
+        if(anim.progress > nBeziers)
+            anim.progress = 0;
+    })
 }
 
 let clicks: vec2[] = [];
-let spline: CubicBezier[] = [];
+let spline: BezierPath;
 
-window.addEventListener('click', e => {
-    if (clicks.length < 11) {
-        clicks.push([e.clientX, e.clientY]);
+// window.addEventListener('click', e => {
+//     if (clicks.length < 11) {
+//         clicks.push([e.clientX, e.clientY]);
 
-        // if (clicks.length > 1)
-        //     new Line(clicks[clicks.length - 2], clicks[clicks.length - 1], LineEnding.ROUND, vec4.fromValues(1, 0, 0, 1), 4);
+//         // if (clicks.length > 1)
+//         //     new Line(clicks[clicks.length - 2], clicks[clicks.length - 1], LineEnding.ROUND, vec4.fromValues(1, 0, 0, 1), 4);
 
-        if (clicks.length < 11)
-            return;
-    }
+//         if (clicks.length < 11)
+//             return;
+//     }
 
-    spline = cardinalSpline([...clicks]);
+//     spline = cardinalSpline([...clicks]);
 
-    clicks = [];
-});
+//     clicks = [];
+// });
 
 function cardinalSpline(points: vec2[]) {
     const first = points[0];
@@ -72,30 +93,27 @@ function cardinalSpline(points: vec2[]) {
 
     points = [expandedFirst, ...points, expandedLast];
     const velocities: vec2[] = [];
-    const spline = [];
+    const path = new BezierPath(vec4.fromValues(rand(0, 1), rand(0, 1), rand(0, 1), 1), thickness, LineEnding.ROUND);
 
     for (let i = 0; i < points.length - 1; i++) {
         if (i < points.length - 2)
             velocities.push(vec2.scale(vec2.create(), vecFrom2Points(points[i], points[i + 2]), 0.5));
 
         if (i >= 2)
-            spline.push(hermiteSpline(points[i - 1], velocities[i - 2], points[i], velocities[i - 1]));
+            addHermiteSplineToPath(path, points[i - 1], velocities[i - 2], points[i], velocities[i - 1]);
     }
 
-    return spline;
+    return path;
 }
 
-function hermiteSpline(startPos: vec2, startVel: vec2, endPos: vec2, endVel: vec2) {
+function addHermiteSplineToPath(path: BezierPath, startPos: vec2, startVel: vec2, endPos: vec2, endVel: vec2) {
     const resizedStart = vec2.scale(vec2.create(), startVel, 1 / 3);
     const resizedEnd = vec2.scale(vec2.create(), endVel, -1 / 3);
 
     const b = vec2.add(vec2.create(), startPos, resizedStart);
     const c = vec2.add(vec2.create(), endPos, resizedEnd);
 
-    const bezier = new CubicBezier(startPos, b, c, endPos, vec4.fromValues(1, 1, 1, 1), 16, LineEnding.ROUND);
-    bezier.startT = 0.0;
-    bezier.endT = 0.0;
-    return bezier;
+    path.addBezier(startPos, b, c, endPos);
 }
 
 // window.addEventListener('mousemove', e => {
