@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 const step = 0.1;
-const nBeziers = 100;
+const nBeziers = 50;
 const lineTLength = 1;
 const thickness = 1;
 let animSteps = 0;
@@ -39,16 +39,16 @@ function randomCardinalSpline() {
     const points = [];
 
     for(let i = 0; i < nBeziers + 1; i++) {
-        points.push(vec2.fromValues((i % 5) * 100 + 300, (Math.floor(i / 5) * 40)*(i%2) + 500));
-        points.push(points[points.length - 1]);
+        points.push(vec2.fromValues((i % 5) * 125 + 200, (Math.floor((i / 10) * 150) - (Math.floor(i%2)* 150) + 400)));
+        // points.push(points[points.length - 1]);
     }
     points.push(points[0]);
 
     animations.push({
         stepFunction: (anim: Animation) => {
             const animationStateEnd = (anim.progress + lineTLength) % (points.length - 1);
-            anim.spline.setTBounds(anim.progress, animationStateEnd);
-            // anim.spline.endT = anim.progress;
+            // anim.spline.setTBounds(anim.progress, animationStateEnd);
+            anim.spline.endT = anim.progress;
         },
         progress: 0.0,
         spline: cardinalSpline(points)
@@ -103,7 +103,7 @@ function cardinalSpline(points: vec2[]) {
 
     for (let i = 0; i < points.length - 1; i++) {
         if (i < points.length - 2)
-            velocities.push(vec2.scale(vec2.create(), vecFrom2Points(points[i], points[i + 2]), 2));
+            velocities.push(vec2.scale(vec2.create(), vecFrom2Points(points[i], points[i + 2]), 3));
 
         if (i >= 2)
             addHermiteSplineToPath(path, points[i - 1], velocities[i - 2], points[i], velocities[i - 1]);
