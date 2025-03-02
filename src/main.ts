@@ -15,16 +15,17 @@ document.addEventListener('DOMContentLoaded', () => {
     resizeCanvas();
     setupRenderer(canvas);
 
-    for(let i = 0; i < 100; i++)
+    for(let i = 0; i < 1; i++)
         randomCardinalSpline();
 
     requestAnimationFrame(stepAnimations);
 });
 
-const step = 0.02;
-const nBeziers = 4;
-const lineTLength = 0.1;
+const step = 0.1;
+const nBeziers = 100;
+const lineTLength = 1;
 const thickness = 1;
+let animSteps = 0;
 
 interface Animation {
     stepFunction: (anim: Animation) => void;
@@ -38,18 +39,22 @@ function randomCardinalSpline() {
     const points = [];
 
     for(let i = 0; i < nBeziers + 1; i++) {
-        points.push(vec2.fromValues(randInt(0, window.innerWidth), randInt(0, window.innerHeight)));
+        points.push(vec2.fromValues((i % 5) * 100 + 300, (Math.floor(i / 5) * 40)*(i%2) + 500));
+        points.push(points[points.length - 1]);
     }
     points.push(points[0]);
 
     animations.push({
         stepFunction: (anim: Animation) => {
-            const animationStateEnd = (anim.progress + lineTLength) % (nBeziers + 1);
+            const animationStateEnd = (anim.progress + lineTLength) % (points.length - 1);
             anim.spline.setTBounds(anim.progress, animationStateEnd);
+            // anim.spline.endT = anim.progress;
         },
         progress: 0.0,
         spline: cardinalSpline(points)
     });
+
+    animSteps = points.length - 1;
 }
 
 function stepAnimations() {
@@ -59,7 +64,7 @@ function stepAnimations() {
         anim.stepFunction(anim);
 
         anim.progress += step;
-        if(anim.progress > nBeziers + 1)
+        if(anim.progress > animSteps)
             anim.progress = 0;
     })
 }
@@ -98,7 +103,7 @@ function cardinalSpline(points: vec2[]) {
 
     for (let i = 0; i < points.length - 1; i++) {
         if (i < points.length - 2)
-            velocities.push(vec2.scale(vec2.create(), vecFrom2Points(points[i], points[i + 2]), 0.5));
+            velocities.push(vec2.scale(vec2.create(), vecFrom2Points(points[i], points[i + 2]), 2));
 
         if (i >= 2)
             addHermiteSplineToPath(path, points[i - 1], velocities[i - 2], points[i], velocities[i - 1]);
