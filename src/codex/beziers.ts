@@ -1,6 +1,6 @@
 import { vec2, vec4 } from "gl-matrix";
 import { LineEnding, Polyline } from "./lines";
-import { EPSILON } from "../math_ops";
+import { EPSILON, lerp } from "../math_ops";
 
 export class CubicBezier {
     colour: vec4;
@@ -88,6 +88,7 @@ export class CubicBezier {
 
         let points: vec2[] = [];
         const selectedTs: number[] = [];
+
         segments.forEach(segment => {
             if (segment.t >= this._startT && segment.t <= this._endT) {
                 points.push(segment.pos);
@@ -97,12 +98,12 @@ export class CubicBezier {
 
         const coeffs = cubicCoefficients(this.a, this.b, this.c, this.d);
 
-        if(Math.abs(selectedTs[0] - this._startT) > EPSILON) {
+        if(Math.abs(selectedTs[0] - this._startT) > EPSILON || points.length == 0) {
             const newStart = pointOnCubic(this._startT, coeffs);
             points = [newStart, ...points];
         }
         
-        if(Math.abs(selectedTs[selectedTs.length - 1] - this._endT) > EPSILON) {
+        if(Math.abs(selectedTs[selectedTs.length - 1] - this._endT) > EPSILON || points.length < 2) {
             const newEnd = pointOnCubic(this._endT, coeffs);
             points = [...points, newEnd];
         }
@@ -147,13 +148,6 @@ function segmentizeWithDeCasteljau(bezier: DeCastStep, flatness: number, depthBu
     points.push(...segmentizeWithDeCasteljau(sub2, flatness, depthBudget - 1, leftT + (rightT - leftT) * 0.5, rightT));
 
     return points;
-}
-
-function lerp(p1: vec2, p2: vec2, t: number) {
-    return vec2.fromValues(
-        (1 - t) * p1[0] + p2[0] * t,
-        (1 - t) * p1[1] + p2[1] * t,
-    );
 }
 
 function approxLength(bezier: DeCastStep) {

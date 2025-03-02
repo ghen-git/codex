@@ -55,7 +55,6 @@ export class BezierPath {
         if(bezierEndT < bezierStartT) {
             bezierEndT += this.beziers.length;
         }
-        const loopingEnd = bezierEndT % this.beziers.length;
 
         for(let i = 0; i < this.beziers.length; i++) {
             const offsetI = bezierStartT + i;

@@ -1,7 +1,7 @@
 import { quat, vec2, vec3, vec4 } from "gl-matrix";
 import { Object } from "./rendering/renderer";
 import { flatCirclesDrawCall, flatQuadsDrawCall } from "./rendering/draw_calls";
-import { EPSILON } from "../math_ops";
+import { EPSILON, lerp } from "../math_ops";
 import { createQuad2D, resizeQuad2D } from "./meshes";
 
 export enum LineEnding {
@@ -61,8 +61,17 @@ export class Polyline {
             this.points = points;
             this.buildQuads();
         }
-        else
-            this.points = points;
+        else {
+            const approxLength = vec2.dist(this.points[0], this.points[this.points.length - 1]);
+            const newLength = vec2.dist(points[0], points[points.length - 1]);
+
+            if (approxLength < EPSILON && newLength > EPSILON) {
+                this.points = points;
+                this.buildQuads();
+            }
+            else
+                this.points = points;
+        }
 
         this.resize();
     }
@@ -71,8 +80,9 @@ export class Polyline {
         this.setThickness(this.thickness);
 
         flatQuadsDrawCall.shouldUpdateBuffers = true;
+        const approxLength = vec2.dist(this.points[0], this.points[this.points.length - 1]);
 
-        if (this.ends == LineEnding.ROUND)
+        if (this.ends == LineEnding.ROUND && approxLength > EPSILON)
             flatCirclesDrawCall.shouldUpdateBuffers = true;
     }
 
@@ -86,32 +96,20 @@ export class Polyline {
         }
 
         for (let i = 0; i < this.points.length; i++) {
-            const quadI = i * 8;
+            const quadI = i * 4;
 
             createQuad2D(this.quads.vertices, this.quads.triangles, quadI,
-                [vec4.fromValues(0, 0, 0, 0), vec4.fromValues(0, 0, 0, 0), vec4.fromValues(1, 1, 1, 0), vec4.fromValues(1, 1, 1, 0)], []
-            );
-            createQuad2D(this.quads.vertices, this.quads.triangles, quadI + 4,
-                [vec4.fromValues(1, 1, 1, 0), vec4.fromValues(1, 1, 1, 0), vec4.fromValues(0, 0, 0, 0), vec4.fromValues(0, 0, 0, 0)], []
+                [this.colour, this.colour, this.colour, this.colour], []
             );
 
             const approxLength = vec2.dist(this.points[0], this.points[this.points.length - 1]);
 
             if (this.ends == LineEnding.ROUND && approxLength > EPSILON)
                 createQuad2D(this.circles!.vertices, this.circles!.triangles, quadI,
-                    [vec4.fromValues(0, 0, 0, 1), vec4.fromValues(0, 0, 0, 1), vec4.fromValues(1, 1, 1, 1), vec4.fromValues(1, 1, 1, 1)],
+                    [this.colour, this.colour, this.colour, this.colour],
                     [
                         { uv: [0, 0], radius: this.thickness / 2 },
                         { uv: [1, 0], radius: this.thickness / 2 },
-                        { uv: [0, 0.5], radius: this.thickness / 2 },
-                        { uv: [1, 0.5], radius: this.thickness / 2 }
-                    ]
-                );
-                createQuad2D(this.circles!.vertices, this.circles!.triangles, quadI + 4,
-                    [vec4.fromValues(1, 1, 1, 1), vec4.fromValues(1, 1, 1, 1), vec4.fromValues(0, 0, 0, 1), vec4.fromValues(0, 0, 0, 1)],
-                    [
-                        { uv: [0, 0.5], radius: this.thickness / 2 },
-                        { uv: [1, 0.5], radius: this.thickness / 2 },
                         { uv: [0, 1], radius: this.thickness / 2 },
                         { uv: [1, 1], radius: this.thickness / 2 }
                     ]
@@ -135,7 +133,7 @@ export class Polyline {
         let lastPoint = this.points[0];
         for (let i = 1; i < this.points.length; i++) {
             let currPoint = this.points[i];
-            const quadI = i * 8;
+            const quadI = i * 4;
 
             const normal = getNormal(lastPoint, currPoint);
             const scaledNormal = vec2.scale(vec2.create(), normal, this.thickness / 2);
@@ -143,16 +141,9 @@ export class Polyline {
             resizeQuad2D(
                 vec2.add(vec2.create(), lastPoint, scaledNormal),// top left
                 vec2.add(vec2.create(), currPoint, scaledNormal),// top right
-                lastPoint,// bottom left
-                currPoint,// bottom right,
-                this.quads.vertices, quadI
-            );
-            resizeQuad2D(
-                lastPoint,// top left
-                currPoint,// top right,
                 vec2.sub(vec2.create(), lastPoint, scaledNormal),// bottom left
-                vec2.sub(vec2.create(), currPoint, scaledNormal),// bottom right
-                this.quads.vertices, quadI + 4
+                vec2.sub(vec2.create(), currPoint, scaledNormal),// bottom right,
+                this.quads.vertices, quadI
             );
 
             lastPoint = currPoint;
@@ -165,30 +156,25 @@ export class Polyline {
         if (!this.circles)
             return;
 
-        let lastPoint = this.points[0];
-
         for (let i = 0; i < this.points.length; i++) {
             let currPoint = this.points[i];
-            const quadI = i * 8;
+            const quadI = i * 4;
 
-            const normal = getNormal(lastPoint, currPoint);
-            const scaledNormal = vec2.scale(vec2.create(), normal, halfThickness);
-            const rotatedNormal = vec2.fromValues(scaledNormal[1], -scaledNormal[0]);
+            // top left
+            this.circles.vertices[quadI + 0].vertex[0] = currPoint[0] - halfThickness;
+            this.circles.vertices[quadI + 0].vertex[1] = currPoint[1] - halfThickness;
 
-            resizeQuad2D(
-                vec2.sub(vec2.create(), vec2.add(vec2.create(), currPoint, scaledNormal), rotatedNormal),// top left
-                vec2.add(vec2.create(), vec2.add(vec2.create(), currPoint, scaledNormal), rotatedNormal),// top right
-                vec2.sub(vec2.create(), currPoint, rotatedNormal),// bottom left
-                vec2.add(vec2.create(), currPoint, rotatedNormal),// bottom right
-                this.circles!.vertices, quadI
-            );
-            resizeQuad2D(
-                vec2.sub(vec2.create(), currPoint, rotatedNormal),// top left
-                vec2.add(vec2.create(), currPoint, rotatedNormal),// top right
-                vec2.sub(vec2.create(), vec2.sub(vec2.create(), currPoint, scaledNormal), rotatedNormal),// bottom left
-                vec2.add(vec2.create(), vec2.sub(vec2.create(), currPoint, scaledNormal), rotatedNormal),// bottom right
-                this.circles!.vertices, quadI + 4
-            );
+            // top right
+            this.circles.vertices[quadI + 1].vertex[0] = currPoint[0] + halfThickness;
+            this.circles.vertices[quadI + 1].vertex[1] = currPoint[1] - halfThickness;
+
+            // bottom left
+            this.circles.vertices[quadI + 2].vertex[0] = currPoint[0] - halfThickness;
+            this.circles.vertices[quadI + 2].vertex[1] = currPoint[1] + halfThickness;
+
+            // bottom right
+            this.circles.vertices[quadI + 3].vertex[0] = currPoint[0] + halfThickness;
+            this.circles.vertices[quadI + 3].vertex[1] = currPoint[1] + halfThickness;
         }
     }
 }
@@ -200,6 +186,22 @@ export class Line {
     circles?: Object;
     thickness: number;
     width: number;
+
+    private _startT: number;
+    public get startT(): number {
+        return this._startT;
+    }
+    public set startT(value: number) {
+        this._startT = value;
+    }
+    private _endT: number;
+    public get endT(): number {
+        return this._endT;
+    }
+    public set endT(value: number) {
+        this._endT = value;
+    }
+
     private _a: vec2;
 
     public get a() {
@@ -227,6 +229,8 @@ export class Line {
         this.thickness = thickness;
         this._a = a;
         this._b = b;
+        this._startT = 0.0;
+        this._endT = 1.0;
         this.width = vec2.distance(a, b);
 
         this.quads = {
@@ -282,72 +286,75 @@ export class Line {
     setThickness(thickness: number) {
         this.thickness = thickness;
 
-        this.refreshQuads();
+        const lerpedA = lerp(this._a, this._b, this._startT);
+        const lerpedB = lerp(this._a, this._b, this._endT);
+
+        this.refreshQuads(lerpedA, lerpedB);
 
         if (this.ends == LineEnding.ROUND) {
             this.circles!.vertices.forEach(v => v.additional!.radius = this.thickness / 2);
-            this.refreshCircles();
+            this.refreshCircles(lerpedA, lerpedB);
         }
     }
 
-    refreshQuads() {
-        const normal = getNormal(this._a, this._b);
+    refreshQuads(lerpedA: vec2, lerpedB: vec2) {
+        const normal = getNormal(lerpedA, lerpedB);
         const scaledNormal = vec2.scale(vec2.create(), normal, this.thickness / 2);
 
         // top left
-        this.quads.vertices[0].vertex[0] = this._a[0] + scaledNormal[0];
-        this.quads.vertices[0].vertex[1] = this._a[1] + scaledNormal[1];
+        this.quads.vertices[0].vertex[0] = lerpedA[0] + scaledNormal[0];
+        this.quads.vertices[0].vertex[1] = lerpedA[1] + scaledNormal[1];
 
         // top right
-        this.quads.vertices[1].vertex[0] = this._b[0] + scaledNormal[0];
-        this.quads.vertices[1].vertex[1] = this._b[1] + scaledNormal[1];
+        this.quads.vertices[1].vertex[0] = lerpedB[0] + scaledNormal[0];
+        this.quads.vertices[1].vertex[1] = lerpedB[1] + scaledNormal[1];
 
         // bottom left
-        this.quads.vertices[2].vertex[0] = this._a[0] - scaledNormal[0];
-        this.quads.vertices[2].vertex[1] = this._a[1] - scaledNormal[1];
+        this.quads.vertices[2].vertex[0] = lerpedA[0] - scaledNormal[0];
+        this.quads.vertices[2].vertex[1] = lerpedA[1] - scaledNormal[1];
 
         // bottom right
-        this.quads.vertices[3].vertex[0] = this._b[0] - scaledNormal[0];
-        this.quads.vertices[3].vertex[1] = this._b[1] - scaledNormal[1];
+        this.quads.vertices[3].vertex[0] = lerpedB[0] - scaledNormal[0];
+        this.quads.vertices[3].vertex[1] = lerpedB[1] - scaledNormal[1];
     }
 
-    refreshCircles() {
+    refreshCircles(lerpedA: vec2, lerpedB: vec2) {
         const halfThickness = this.thickness * 0.5;
 
         if (!this.circles)
             return;
 
         // top left for left circle
-        this.circles.vertices[0].vertex[0] = this._a[0] - halfThickness;
-        this.circles.vertices[0].vertex[1] = this._a[1] - halfThickness;
+        this.circles.vertices[0].vertex[0] = lerpedA[0] - halfThickness;
+        this.circles.vertices[0].vertex[1] = lerpedA[1] - halfThickness;
 
         // top right for left circle
-        this.circles.vertices[1].vertex[0] = this._a[0] + halfThickness;
-        this.circles.vertices[1].vertex[1] = this._a[1] - halfThickness;
+        this.circles.vertices[1].vertex[0] = lerpedA[0] + halfThickness;
+        this.circles.vertices[1].vertex[1] = lerpedA[1] - halfThickness;
 
         // bottom left for left circle
-        this.circles.vertices[2].vertex[0] = this._a[0] - halfThickness;
-        this.circles.vertices[2].vertex[1] = this._a[1] + halfThickness;
+        this.circles.vertices[2].vertex[0] = lerpedA[0] - halfThickness;
+        this.circles.vertices[2].vertex[1] = lerpedA[1] + halfThickness;
 
         // bottom right for left circle
-        this.circles.vertices[3].vertex[0] = this._a[0] + halfThickness;
-        this.circles.vertices[3].vertex[1] = this._a[1] + halfThickness;
+        this.circles.vertices[3].vertex[0] = lerpedA[0] + halfThickness;
+        this.circles.vertices[3].vertex[1] = lerpedA[1] + halfThickness;
 
         // top left for right circle
-        this.circles.vertices[4].vertex[0] = this._b[0] - halfThickness;
-        this.circles.vertices[4].vertex[1] = this._b[1] - halfThickness;
+        this.circles.vertices[4].vertex[0] = lerpedB[0] - halfThickness;
+        this.circles.vertices[4].vertex[1] = lerpedB[1] - halfThickness;
 
         // top right for right circle
-        this.circles.vertices[5].vertex[0] = this._b[0] + halfThickness;
-        this.circles.vertices[5].vertex[1] = this._b[1] - halfThickness;
+        this.circles.vertices[5].vertex[0] = lerpedB[0] + halfThickness;
+        this.circles.vertices[5].vertex[1] = lerpedB[1] - halfThickness;
 
         // bottom left for right circle
-        this.circles.vertices[6].vertex[0] = this._b[0] - halfThickness;
-        this.circles.vertices[6].vertex[1] = this._b[1] + halfThickness;
+        this.circles.vertices[6].vertex[0] = lerpedB[0] - halfThickness;
+        this.circles.vertices[6].vertex[1] = lerpedB[1] + halfThickness;
 
         // bottom right for right circle
-        this.circles.vertices[7].vertex[0] = this._b[0] + halfThickness;
-        this.circles.vertices[7].vertex[1] = this._b[1] + halfThickness;
+        this.circles.vertices[7].vertex[0] = lerpedB[0] + halfThickness;
+        this.circles.vertices[7].vertex[1] = lerpedB[1] + halfThickness;
     }
 }
 

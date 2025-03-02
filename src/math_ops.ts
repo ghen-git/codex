@@ -1,6 +1,6 @@
 import { mat4, quat, vec2, vec3, vec4 } from "gl-matrix";
 
-export const EPSILON = 0.0001;
+export const EPSILON = 0.00001;
 
 /**
  * translates a rotation expressed in the axis angle format to
@@ -155,4 +155,11 @@ export function distance(v1: vec2, v2: vec2) {
 
 export function rotate180(v: vec2) {
     return [-v[0], -v[1]];
+}
+
+export function lerp(p1: vec2, p2: vec2, t: number) {
+    return vec2.fromValues(
+        (1 - t) * p1[0] + p2[0] * t,
+        (1 - t) * p1[1] + p2[1] * t,
+    );
 }
