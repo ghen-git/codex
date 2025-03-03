@@ -1,7 +1,7 @@
 import { quat, vec2, vec3, vec4 } from "gl-matrix";
 import { Object } from "./rendering/renderer";
 import { flatCirclesDrawCall, flatQuadsDrawCall } from "./rendering/draw_calls";
-import { EPSILON, lerp } from "../math_ops";
+import { EPSILON, lerpVec2 } from "../math_ops";
 import { createQuad2D, resizeQuad2D } from "./meshes";
 
 export enum LineEnding {
@@ -222,15 +222,15 @@ export class Line {
         this.resize();
     }
 
-    constructor(a: vec2, b: vec2, ends: LineEnding, colour: vec4, thickness: number) {
+    constructor(a: vec2, b: vec2, ends: LineEnding, colour: vec4, thickness: number, startT?: number, endT?: number) {
         this.ends = ends;
         this.colour = colour;
 
         this.thickness = thickness;
         this._a = a;
         this._b = b;
-        this._startT = 0.0;
-        this._endT = 1.0;
+        this._startT = startT !== undefined ? startT : 0.0;
+        this._endT = endT !== undefined ? endT : 0.0;
         this.width = vec2.distance(a, b);
 
         this.quads = {
@@ -273,27 +273,32 @@ export class Line {
         this.resize();
     }
 
+    setTBounds(startT: number, endT: number) {
+        this._startT = startT;
+        this._endT = endT;
+
+        this.setThickness(this.thickness);
+    }
+
     private resize() {
         this.width = vec2.dist(this._a, this._b);
 
         this.setThickness(this.thickness);
-        flatQuadsDrawCall.shouldUpdateBuffers = true;
-
-        if (this.ends == LineEnding.ROUND)
-            flatCirclesDrawCall.shouldUpdateBuffers = true;
     }
 
     setThickness(thickness: number) {
         this.thickness = thickness;
 
-        const lerpedA = lerp(this._a, this._b, this._startT);
-        const lerpedB = lerp(this._a, this._b, this._endT);
+        const lerpedA = lerpVec2(this._a, this._b, this._startT);
+        const lerpedB = lerpVec2(this._a, this._b, this._endT);
 
         this.refreshQuads(lerpedA, lerpedB);
+        flatQuadsDrawCall.shouldUpdateBuffers = true;
 
         if (this.ends == LineEnding.ROUND) {
             this.circles!.vertices.forEach(v => v.additional!.radius = this.thickness / 2);
             this.refreshCircles(lerpedA, lerpedB);
+            flatCirclesDrawCall.shouldUpdateBuffers = true;
         }
     }
 
@@ -355,6 +360,14 @@ export class Line {
         // bottom right for right circle
         this.circles.vertices[7].vertex[0] = lerpedB[0] + halfThickness;
         this.circles.vertices[7].vertex[1] = lerpedB[1] + halfThickness;
+    }
+
+    remove() {
+        flatQuadsDrawCall.removeObject(this.quads);
+
+        if (this.ends == LineEnding.ROUND) {
+            flatCirclesDrawCall.removeObject(this.circles!);
+        }
     }
 }
 

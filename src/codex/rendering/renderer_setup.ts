@@ -2,7 +2,6 @@ import { flatCirclesDrawCall, flatQuadsDrawCall, setupDrawCalls } from "./draw_c
 import { rgbToScreenSpace } from "../../math_ops";
 import { init } from "./renderer";
 
-
 export function setupRenderer(canvas: HTMLCanvasElement) {
     setupDrawCalls();
 

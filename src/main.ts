@@ -4,10 +4,14 @@ import { vec2, vec4 } from 'gl-matrix';
 import { setupRenderer } from './codex/rendering/renderer_setup';
 import { CubicBezier } from './codex/beziers';
 import { rand, randInt, vecFrom2Points } from './math_ops';
-import { LineEnding } from './codex/lines';
+import { Line, LineEnding } from './codex/lines';
 import { BezierPath } from './codex/paths';
+import { Animator } from './codex/animation';
+import { lineAnimation } from './codex/animations/line_animation';
+import { LinkedList } from './codex/linked_list';
 
 let canvas: HTMLCanvasElement;
+let animator: Animator;
 
 document.addEventListener('DOMContentLoaded', () => {
     canvas = stringToHTML(`<canvas></canvas>`) as HTMLCanvasElement;
@@ -15,17 +19,50 @@ document.addEventListener('DOMContentLoaded', () => {
     resizeCanvas();
     setupRenderer(canvas);
 
-    for(let i = 0; i < 1; i++)
-        randomCardinalSpline();
+    animator = new Animator();
+    animator.start();
 
-    requestAnimationFrame(stepAnimations);
+    // const points: vec2[] = [[100, 0], [100, 100], [200, 200], [300, 200], [400, 150], [500, 0], [600, 300], [600, 400]];
+
+    // const startLine = new Line(points[0], points[1], LineEnding.ROUND, vec4.fromValues(1, 1, 1, 1), 1);
+    // const endLine = new Line(points[2], points[3], LineEnding.ROUND, vec4.fromValues(1, 1, 1, 1), 1);
+    // const bezier = new CubicBezier(points[4], points[5], points[6], points[7], vec4.fromValues(1, 1, 1, 1), 1, LineEnding.ROUND);
+    // const spline = cardinalSpline([points[0],points[0], points[1],  points[1], points[2], points[2], points[3], points[3], points[4], points[5]]);
+
+    // animations.push({
+    //     stepFunction: (anim: Animation) => {
+    //         const animationStateEnd = (anim.progress + lineTLength) % 9;
+    //         anim.spline.setTBounds(anim.progress, animationStateEnd);
+    //         // anim.spline.endT = anim.progress;
+    //     },
+    //     progress: 0.0,
+    //     spline: spline
+    // });
+
+    // requestAnimationFrame(stepAnimations);
 });
 
-const step = 0.1;
-const nBeziers = 50;
+
+let mousePos: vec2 = [0, 0];
+window.addEventListener('mousemove', e => {
+    mousePos[0] = e.clientX;
+    mousePos[1] = e.clientY;
+})
+
+window.addEventListener('click', e => {
+    lineAnimation([0,0], getMousePos, 1000, animator)
+        .play();
+});
+
+function getMousePos() {
+    return mousePos;
+}
+
+const step = 0.05;
+const nBeziers = 11;
 const lineTLength = 1;
 const thickness = 1;
-let animSteps = 0;
+let animSteps = 7;
 
 interface Animation {
     stepFunction: (anim: Animation) => void;
@@ -36,17 +73,11 @@ interface Animation {
 const animations: Animation[] = [];
 
 function randomCardinalSpline() {
-    const points = [];
-
-    for(let i = 0; i < nBeziers + 1; i++) {
-        points.push(vec2.fromValues((i % 5) * 125 + 200, (Math.floor((i / 10) * 150) - (Math.floor(i%2)* 150) + 400)));
-        // points.push(points[points.length - 1]);
-    }
-    points.push(points[0]);
+    const points: vec2[] = [];
 
     animations.push({
         stepFunction: (anim: Animation) => {
-            const animationStateEnd = (anim.progress + lineTLength) % (points.length - 1);
+            const animationStateEnd = (anim.progress + lineTLength) % 11;
             // anim.spline.setTBounds(anim.progress, animationStateEnd);
             anim.spline.endT = anim.progress;
         },
@@ -54,7 +85,7 @@ function randomCardinalSpline() {
         spline: cardinalSpline(points)
     });
 
-    animSteps = points.length - 1;
+    animSteps = 11;
 }
 
 function stepAnimations() {
@@ -64,29 +95,10 @@ function stepAnimations() {
         anim.stepFunction(anim);
 
         anim.progress += step;
-        if(anim.progress > animSteps)
+        if (anim.progress > animSteps)
             anim.progress = 0;
     })
 }
-
-let clicks: vec2[] = [];
-let spline: BezierPath;
-
-// window.addEventListener('click', e => {
-//     if (clicks.length < 11) {
-//         clicks.push([e.clientX, e.clientY]);
-
-//         // if (clicks.length > 1)
-//         //     new Line(clicks[clicks.length - 2], clicks[clicks.length - 1], LineEnding.ROUND, vec4.fromValues(1, 0, 0, 1), 4);
-
-//         if (clicks.length < 11)
-//             return;
-//     }
-
-//     spline = cardinalSpline([...clicks]);
-
-//     clicks = [];
-// });
 
 function cardinalSpline(points: vec2[]) {
     const first = points[0];
@@ -103,7 +115,7 @@ function cardinalSpline(points: vec2[]) {
 
     for (let i = 0; i < points.length - 1; i++) {
         if (i < points.length - 2)
-            velocities.push(vec2.scale(vec2.create(), vecFrom2Points(points[i], points[i + 2]), 3));
+            velocities.push(vec2.scale(vec2.create(), vecFrom2Points(points[i], points[i + 2]), 0.5));
 
         if (i >= 2)
             addHermiteSplineToPath(path, points[i - 1], velocities[i - 2], points[i], velocities[i - 1]);
@@ -121,13 +133,6 @@ function addHermiteSplineToPath(path: BezierPath, startPos: vec2, startVel: vec2
 
     path.addBezier(startPos, b, c, endPos);
 }
-
-// window.addEventListener('mousemove', e => {
-//     let multiplier = 1;
-
-//     bezier.b = [e.clientX - 50, e.clientY*multiplier];
-//     bezier.c = [e.clientX + 50, e.clientY*multiplier];
-// })
 
 window.addEventListener('resize', resizeCanvas);
 

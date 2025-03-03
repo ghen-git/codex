@@ -43,11 +43,27 @@ export class LinkedList<T> {
         return node;
     }
 
+    queue(nodeValue: T) {
+        const node = new LinkedListNode(nodeValue);
+
+        if (this.start == null) {
+            this.start = node;
+            this.end = node;
+        }
+        else {
+            this.start!.prev = node;
+            node.next = this.start;
+            this.start = node;
+        }
+        this.length++;
+        return node;
+    }
+
     remove(node: LinkedListNode<T>) {
         if (node == this.start) {
             this.start = node.next;
         }
-        else if (node == this.end) {
+        if (node == this.end) {
             this.end = node.prev;
         }
 

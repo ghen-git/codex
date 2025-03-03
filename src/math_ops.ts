@@ -157,9 +157,12 @@ export function rotate180(v: vec2) {
     return [-v[0], -v[1]];
 }
 
-export function lerp(p1: vec2, p2: vec2, t: number) {
+export function lerpVec2(p1: vec2, p2: vec2, t: number) {
     return vec2.fromValues(
         (1 - t) * p1[0] + p2[0] * t,
         (1 - t) * p1[1] + p2[1] * t,
     );
+}
+export function lerp(n1: number, n2: number, t: number) {
+    return (1 - t) * n1 + n2 * t;
 }

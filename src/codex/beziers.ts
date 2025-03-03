@@ -1,6 +1,6 @@
 import { vec2, vec4 } from "gl-matrix";
 import { LineEnding, Polyline } from "./lines";
-import { EPSILON, lerp } from "../math_ops";
+import { EPSILON, lerpVec2 } from "../math_ops";
 
 export class CubicBezier {
     colour: vec4;
@@ -62,14 +62,14 @@ export class CubicBezier {
         this._d = value;
     }
 
-    constructor(a: vec2, b: vec2, c: vec2, d: vec2, colour: vec4, thickness: number, ends: LineEnding) {
+    constructor(a: vec2, b: vec2, c: vec2, d: vec2, colour: vec4, thickness: number, ends: LineEnding, startT?: number, endT?: number) {
         this._a = a;
         this._b = b;
         this._c = c;
         this._d = d;
 
-        this._startT = 0.0;
-        this._endT = 1.0;
+        this._startT = startT !== undefined ? startT : 0.0;
+        this._endT = endT !== undefined ? endT : 0.0;
 
         this.colour = colour;
         this.thickness = thickness;
@@ -134,12 +134,12 @@ function segmentizeWithDeCasteljau(bezier: DeCastStep, flatness: number, depthBu
 
     const points: SegmentizedPoint[] = [];
 
-    const ab = lerp(bezier.a, bezier.b, 0.5);
-    const bc = lerp(bezier.b, bezier.c, 0.5);
-    const cd = lerp(bezier.c, bezier.d, 0.5);
-    const abbc = lerp(ab, bc, 0.5);
-    const bccd = lerp(bc, cd, 0.5);
-    const abbccd = lerp(abbc, bccd, 0.5);
+    const ab = lerpVec2(bezier.a, bezier.b, 0.5);
+    const bc = lerpVec2(bezier.b, bezier.c, 0.5);
+    const cd = lerpVec2(bezier.c, bezier.d, 0.5);
+    const abbc = lerpVec2(ab, bc, 0.5);
+    const bccd = lerpVec2(bc, cd, 0.5);
+    const abbccd = lerpVec2(abbc, bccd, 0.5);
 
     const sub1 = { a: bezier.a, b: ab, c: abbc, d: abbccd };
     const sub2 = { a: abbccd, b: bccd, c: cd, d: bezier.d };
