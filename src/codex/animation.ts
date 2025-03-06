@@ -32,7 +32,6 @@ export class Animator {
             if (animation.progress > animation.duration) {
                 animation.end();
                 this.animationQueue.remove(animation.node!);
-                console.log(this);
             }
         });
 

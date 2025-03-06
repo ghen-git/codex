@@ -43,9 +43,13 @@ export class BezierPath {
         this.refreshBeziers();
     }
 
-    addBezier(a: vec2, b: vec2, c: vec2, d: vec2) {
-        const bezier = new CubicBezier(a, b, c, d, this.colour, this.thickness, this.ends);
+    addBezier(a: vec2, b: vec2, c: vec2, d: vec2, startT?: number, endT?: number) {
+        const bezier = new CubicBezier(a, b, c, d, this.colour, this.thickness, this.ends, startT, endT);
         this.beziers.push(bezier);
+    }
+
+    remove() {
+        this.beziers.forEach(b => b.remove());
     }
 
     refreshBeziers() {

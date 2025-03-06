@@ -4,15 +4,14 @@ import { lerp } from "../../math_ops";
 import { Line, LineEnding } from "../lines";
 
 interface LineAnimationData {
-    line: Line,
-    getEndPos: () => vec2
+    line: Line
 };
 
-export function lineAnimation(a: vec2, getEndPos: () => vec2, millisDuration: number, animator: Animator) {
+export function lineAnimation(a: vec2, b: vec2, millisDuration: number, animator: Animator) {
     const animation = new Animation<LineAnimationData>(
         millisDuration,
         frame,
-        () => setup(a, getEndPos),
+        () => setup(a, b),
         cleanup,
         animator
     );
@@ -23,20 +22,17 @@ export function lineAnimation(a: vec2, getEndPos: () => vec2, millisDuration: nu
 function frame(t: number, data?: LineAnimationData) {
     const longerT = lerp(0, 1.2, t);
 
-    const stepStart = Math.max(0, longerT - 0.2)
+    const stepStart = 0;
     const stepEnd = Math.min(1, longerT);
     data!.line.setTBounds(stepStart, stepEnd);
-    data!.line.b = data!.getEndPos();
 }
 
-function setup(a: vec2, getEndPos: () => vec2) {
+function setup(a: vec2, b: vec2) {
     return {
-        line: new Line(a, getEndPos(), LineEnding.ROUND, vec4.fromValues(1, 1, 1, 1), 4, 0, 0),
-        getEndPos: getEndPos
+        line: new Line(a, b, LineEnding.ROUND, vec4.fromValues(1, 1, 1, 1), 2, 0, 0)
     };
 }
 
 function cleanup(data?: LineAnimationData) {
-    console.log
-    data!.line.remove();
+    // data!.line.remove();
 }

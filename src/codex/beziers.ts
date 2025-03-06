@@ -69,7 +69,7 @@ export class CubicBezier {
         this._d = d;
 
         this._startT = startT !== undefined ? startT : 0.0;
-        this._endT = endT !== undefined ? endT : 0.0;
+        this._endT = endT !== undefined ? endT : 1.0;
 
         this.colour = colour;
         this.thickness = thickness;
@@ -109,6 +109,10 @@ export class CubicBezier {
         }
         
         this.line.changePoints(points);
+    }
+
+    remove() {
+        this.line.remove();
     }
 }
 

@@ -65,7 +65,9 @@ export class Polyline {
             const approxLength = vec2.dist(this.points[0], this.points[this.points.length - 1]);
             const newLength = vec2.dist(points[0], points[points.length - 1]);
 
-            if (approxLength < EPSILON && newLength > EPSILON) {
+            if (approxLength < EPSILON && newLength > EPSILON ||
+                approxLength > EPSILON && newLength < EPSILON
+            ) {
                 this.points = points;
                 this.buildQuads();
             }
@@ -82,7 +84,7 @@ export class Polyline {
         flatQuadsDrawCall.shouldUpdateBuffers = true;
         const approxLength = vec2.dist(this.points[0], this.points[this.points.length - 1]);
 
-        if (this.ends == LineEnding.ROUND && approxLength > EPSILON)
+        if (this.ends == LineEnding.ROUND)
             flatCirclesDrawCall.shouldUpdateBuffers = true;
     }
 
@@ -95,6 +97,8 @@ export class Polyline {
             this.circles!.vertices = [];
         }
 
+        const approxLength = vec2.dist(this.points[0], this.points[this.points.length - 1]);
+
         for (let i = 0; i < this.points.length; i++) {
             const quadI = i * 4;
 
@@ -102,9 +106,7 @@ export class Polyline {
                 [this.colour, this.colour, this.colour, this.colour], []
             );
 
-            const approxLength = vec2.dist(this.points[0], this.points[this.points.length - 1]);
-
-            if (this.ends == LineEnding.ROUND && approxLength > EPSILON)
+            if (this.ends == LineEnding.ROUND && approxLength > EPSILON) {
                 createQuad2D(this.circles!.vertices, this.circles!.triangles, quadI,
                     [this.colour, this.colour, this.colour, this.colour],
                     [
@@ -114,6 +116,7 @@ export class Polyline {
                         { uv: [1, 1], radius: this.thickness / 2 }
                     ]
                 );
+            }
         }
     }
 
@@ -177,6 +180,14 @@ export class Polyline {
             this.circles.vertices[quadI + 3].vertex[1] = currPoint[1] + halfThickness;
         }
     }
+
+    remove() {
+        flatQuadsDrawCall.removeObject(this.quads);
+
+        if (this.ends == LineEnding.ROUND) {
+            flatCirclesDrawCall.removeObject(this.circles!);
+        }
+    }
 }
 
 export class Line {
@@ -230,7 +241,7 @@ export class Line {
         this._a = a;
         this._b = b;
         this._startT = startT !== undefined ? startT : 0.0;
-        this._endT = endT !== undefined ? endT : 0.0;
+        this._endT = endT !== undefined ? endT : 1.0;
         this.width = vec2.distance(a, b);
 
         this.quads = {
@@ -246,7 +257,7 @@ export class Line {
             scale: vec3.fromValues(1, 1, 1)
         };
 
-        if (this.ends == LineEnding.ROUND) {
+        if (this.ends == LineEnding.ROUND && vec2.dist(a, b) > EPSILON) {
             this.circles = {
                 triangles: [[0, 1, 2], [2, 3, 1], [4, 5, 6], [6, 7, 5]],
                 vertices: [

@@ -163,6 +163,24 @@ export function lerpVec2(p1: vec2, p2: vec2, t: number) {
         (1 - t) * p1[1] + p2[1] * t,
     );
 }
+
 export function lerp(n1: number, n2: number, t: number) {
     return (1 - t) * n1 + n2 * t;
+}
+
+export function randomOrderArray(length: number) {
+    const arr: any[] = [];
+
+    for(let i = 0; i < length; i++) 
+        arr[i] = i;
+
+    for(let i = 0; i < length - 1; i++) {
+        const target = randInt(i + 1, length - 1);
+
+        const targetValue = arr[target];
+        arr[target] = arr[i];
+        arr[i] = targetValue;
+    }
+
+    return arr;
 }
