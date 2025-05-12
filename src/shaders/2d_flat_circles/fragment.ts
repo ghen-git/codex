@@ -33,7 +33,7 @@ void main() {
     if(distance_squared(p4, centre) <= radiusSq) 
         alpha_multiplier += 0.25;
 
-    fragColor = vec4(vColour.xyz, vColour.w * alpha_multiplier);
+    fragColor = vec4(vColour.xyz * alpha_multiplier, vColour.w * alpha_multiplier);
 }
 
 float distance_squared(vec2 p1, vec2 p2) {

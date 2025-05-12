@@ -20,32 +20,25 @@ document.addEventListener('DOMContentLoaded', () => {
     resizeCanvas();
     setupRenderer(canvas);
 
+    for(let i = 0; i < 10; i++)
+        new CubicBezier(
+            [randInt(0, window.innerWidth), randInt(0, window.innerHeight)],
+            [randInt(0, window.innerWidth), randInt(0, window.innerHeight)],
+            [randInt(0, window.innerWidth), randInt(0, window.innerHeight)],
+            [randInt(0, window.innerWidth), randInt(0, window.innerHeight)],
+            [rand(0, 1), rand(0, 1), rand(0, 1), 1],
+            32,
+            LineEnding.ROUND
+        );
+
     animator = new Animator();
     animator.start()
-    // const points: vec2[] = [[10, 0], [10, 100], [200, 200], [300, 200], [400, 150], [500, 0], [600, 3060, [600, 400]];
-    // const startLine = new Line(points[0], points[1], LineEnding.ROUND, vec4.fromValues(1, 1, 1, 1), 1)80   // const endLine = new Line(points[2], points[3], LineEnding.ROUND, vec4.fromValues(1, 1, 1, 1), 1);
-    // const bezier = new CubicBezier(points[4], points[5], points[6], points[7], vec4.fromValues(1, 1, 1, 1), 1, LineEnding.ROUND);
-    // const spline = cardinalSpline([points[0],points[0], points[1],  points[1], points[2], points[2], points[3], points[3], points[4], points[5]]);
-
-    // animations.push({
-    //     stepFunction: (anim: Animation) => {
-    //         const animationStateEnd = (anim.progress + lineTLength) % 9;
-    //         anim.spline.setTBounds(anim.progress, animationStateEnd);
-    //         // anim.spline.endT = anim.progress;
-    //     },
-    //     progress: 0.0,
-    //     spline: spline
-    // });
-
     requestAnimationFrame(stepAnimations);
 });
 
 let clothSim: ClothSim | undefined;
-let spline: BezierPath;
 let prevFrameTime: number;
 let lastSpline: BezierPath | undefined;
-let elapsed = 0;
-let duration = 3000;
 
 function stepAnimations() {
     requestAnimationFrame(stepAnimations);
@@ -56,35 +49,16 @@ function stepAnimations() {
 
     if (clothSim) {
         clothSim.simulationFrame(deltaTime);
-        // const points = clothSim.points.map(p => p.pos);
+        const points = clothSim.points.map(p => p.pos);
 
-        // if (lastSpline) {
-        //     lastSpline.remove();
-        //     lastSpline = undefined;
-        // }
-        // if (elapsed < duration) {
-        //     const tStep = elapsed / duration;
-        //     const spline = cardinalSpline(points);
+        if (lastSpline) {
+            lastSpline.remove();
+            lastSpline = undefined;
+        }
 
-        //     spline.endT = lerp(points.length - 1, 0, tStep);
-        //     spline.startT = Math.max(lerp(points.length - 1, 0, tStep) - 10, 0);
+        const spline = cardinalSpline(points);
 
-        //     lastSpline = spline;
-        //     elapsed += deltaTime;
-        // }
-        // else {
-        //     clothSim = undefined;
-        //     lineAnimation(mousePos.pos, vec2.add(vec2.create(), mousePos.pos, vec2.fromValues(100, 0)), 250, animator)
-        //         .onEnd.trigger(
-        //             lineAnimation(vec2.add(vec2.create(), mousePos.pos, vec2.fromValues(100, 0)), vec2.add(vec2.create(), mousePos.pos, vec2.fromValues(100, 50)), 250, animator)
-        //         )
-        //         .play();
-                
-        //     lineAnimation(vec2.add(vec2.create(), mousePos.pos, vec2.fromValues(0, 0)), vec2.add(vec2.create(), mousePos.pos, vec2.fromValues(0, 50)), 250, animator)
-        //     .onEnd.trigger(
-        //         lineAnimation(vec2.add(vec2.create(), mousePos.pos, vec2.fromValues(0, 50)), vec2.add(vec2.create(), mousePos.pos, vec2.fromValues(100, 50)), 250, animator)
-        //     ).play();
-        // }
+        lastSpline = spline;
     }
 }
 
@@ -95,34 +69,23 @@ window.addEventListener('mousemove', e => {
 })
 
 const startPos: vec2 = [0, 0];
-const nPoints = 40;
+const nPoints = 10;
 
 window.addEventListener('click', e => {
-    // lineAnimation([0,0], getMousePos, 1000, animator)
-    //     .play();
-
     const points: Point[] = [mousePos];
     const seams: Seam[] = [];
 
-    for(let i = 1; i < nPoints; i++) {
+    for (let i = 1; i < nPoints; i++) {
         const t = i / nPoints;
         const pointPos = lerpVec2(mousePos.pos, startPos, t);
         points.push(new Point(pointPos, false));
-        seams.push(new Seam(points[i-1], points[i]));
+        seams.push(new Seam(points[i - 1], points[i]));
     }
 
-    elapsed = 0;
     clothSim = new ClothSim(points, seams);
 });
 
-function getMousePos() {
-    return mousePos.pos;
-}
-
-const step = 0.05;
-const nBeziers = 11;
 const lineTLength = 1;
-const thickness = 1;
 let animSteps = 7;
 
 interface Animation {
@@ -133,21 +96,6 @@ interface Animation {
 
 const animations: Animation[] = [];
 
-function randomCardinalSpline() {
-    const points: vec2[] = [];
-
-    animations.push({
-        stepFunction: (anim: Animation) => {
-            const animationStateEnd = (anim.progress + lineTLength) % 11;
-            // anim.spline.setTBounds(anim.progress, animationStateEnd);
-            anim.spline.endT = anim.progress;
-        },
-        progress: 0.0,
-        spline: cardinalSpline(points)
-    });
-
-    animSteps = 11;
-}
 
 function cardinalSpline(points: vec2[]) {
     const first = points[0];
@@ -181,7 +129,7 @@ function addHermiteSplineToPath(path: BezierPath, startPos: vec2, startVel: vec2
     const b = vec2.add(vec2.create(), startPos, resizedStart);
     const c = vec2.add(vec2.create(), endPos, resizedEnd);
 
-    path.addBezier(startPos, b, c, endPos, 1, 1);
+    path.addBezier(startPos, b, c, endPos, 0, 1);
 }
 
 window.addEventListener('resize', resizeCanvas);

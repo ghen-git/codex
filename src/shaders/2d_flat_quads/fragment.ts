@@ -5,6 +5,6 @@ in highp vec4 vColour;
 out vec4 fragColor;
 
 void main() {
-    fragColor = vColour;
+    fragColor = vec4(vColour.xyzw);
 }
 `;

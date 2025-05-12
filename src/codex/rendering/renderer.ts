@@ -75,8 +75,9 @@ export class Renderer {
         this.gl.clearColor(0, 0, 0, 0); // sets the value for the colour buffer bit
         this.gl.depthFunc(this.gl.LEQUAL); // sets the comparison to see if an object's z is closer than another to <=
         this.gl.disable(this.gl.DEPTH_TEST); // activates depth testing (closer triangles get rendered on top of further ones)
-        this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
         this.gl.enable(this.gl.BLEND);
+        this.gl.blendFunc(this.gl.ONE, this.gl.ONE);
+        this.gl.blendEquation(this.gl.MAX);
 
         this.drawCalls.forEach(d => d.setup(this.gl));
         this.loopOnAnimationFrame();
@@ -294,7 +295,7 @@ export class DrawCall {
                 const vert = data.vertex;
                 vertexes.push(...vec4.fromValues(vert[0], vert[1], vert[2], 1));
                 modelViewMatrixIndices.push(objectIndex);
-                colours.push(...data.colour);
+                colours.push(...vec4.fromValues(data.colour[0] * data.colour[3], data.colour[1] * data.colour[3], data.colour[2] * data.colour[3], data.colour[3]));
             });
             obj.triangles.forEach(tri => {
                 tri.forEach(vertexIndex => {

@@ -7,7 +7,7 @@ export function setupRenderer(canvas: HTMLCanvasElement) {
 
     const renderer = init(canvas, window, rgbToScreenSpace(17, 17, 17), [
         flatCirclesDrawCall,
-        flatQuadsDrawCall
+        flatQuadsDrawCall,
     ])!;
 
     renderer.start();

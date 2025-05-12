@@ -164,6 +164,15 @@ export function lerpVec2(p1: vec2, p2: vec2, t: number) {
     );
 }
 
+export function lerpVec4(p1: vec4, p2: vec4, t: number) {
+    return vec4.fromValues(
+        (1 - t) * p1[0] + p2[0] * t,
+        (1 - t) * p1[1] + p2[1] * t,
+        (1 - t) * p1[2] + p2[2] * t,
+        (1 - t) * p1[3] + p2[3] * t,
+    );
+}
+
 export function lerp(n1: number, n2: number, t: number) {
     return (1 - t) * n1 + n2 * t;
 }

@@ -17,17 +17,17 @@ export class ClothSim {
     }
 
     simulationFrame(deltaTime: number) {
-        // for(let i = 0; i < this.points.length; i++) {
-        //     if(this.points[i].locked)
-        //         continue;
+        for(let i = 0; i < this.points.length; i++) {
+            if(this.points[i].locked)
+                continue;
 
-        //     const prevPos = this.points[i].pos;
-        //     const movement = vec2.sub(vec2.create(), this.points[i].pos, this.points[i].lastPos);
+            const prevPos = this.points[i].pos;
+            const movement = vec2.sub(vec2.create(), this.points[i].pos, this.points[i].lastPos);
 
-        //     this.points[i].pos = vec2.add(vec2.create(), this.points[i].pos, movement);
-        //     this.points[i].pos = vec2.add(vec2.create(), this.points[i].pos, [0, gravity * deltaTime * deltaTime]);
-        //     this.points[i].lastPos = prevPos;
-        // }
+            this.points[i].pos = vec2.add(vec2.create(), this.points[i].pos, movement);
+            this.points[i].pos = vec2.add(vec2.create(), this.points[i].pos, [0, gravity * deltaTime * deltaTime]);
+            this.points[i].lastPos = prevPos;
+        }
         for(let i = 0; i < iterations; i++) {
             for(let j = 0; j < this.seams.length; j++) {
                 const seam = this.seams[this.order[j]];

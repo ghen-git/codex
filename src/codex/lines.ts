@@ -1,7 +1,7 @@
 import { quat, vec2, vec3, vec4 } from "gl-matrix";
 import { Object } from "./rendering/renderer";
 import { flatCirclesDrawCall, flatQuadsDrawCall } from "./rendering/draw_calls";
-import { EPSILON, lerpVec2 } from "../math_ops";
+import { EPSILON, lerpVec2, lerpVec4 } from "../math_ops";
 import { createQuad2D, resizeQuad2D } from "./meshes";
 
 export enum LineEnding {
@@ -97,18 +97,29 @@ export class Polyline {
             this.circles!.vertices = [];
         }
 
-        const approxLength = vec2.dist(this.points[0], this.points[this.points.length - 1]);
+        const lengthSq = this.lengthSq();
+        let progress = 0;
+        let leftColour: vec4 = [0, 0, 0, 0];
+        let rightColour: vec4 = [0, 0, 0, 0];
+        let quadI = 0;
 
-        for (let i = 0; i < this.points.length; i++) {
-            const quadI = i * 4;
+        for (let i = 0; i < this.points.length - 1; i++) {
+            quadI = i * 4;
+
+            let xSq = this.points[i + 1][0] - this.points[i][0];
+            let ySq = this.points[i + 1][1] - this.points[i][1];
+            let step = xSq * xSq + ySq * ySq;
+            leftColour = lerpVec4(this.colour, [0, 0, 0, 0], progress / lengthSq);
+            rightColour = lerpVec4(this.colour, [0, 0, 0, 0], (progress + step) / lengthSq);
+            progress += step;
 
             createQuad2D(this.quads.vertices, this.quads.triangles, quadI,
-                [this.colour, this.colour, this.colour, this.colour], []
+                [leftColour, rightColour, leftColour, rightColour], []
             );
 
-            if (this.ends == LineEnding.ROUND && approxLength > EPSILON) {
+            if (this.ends == LineEnding.ROUND && lengthSq > EPSILON) {
                 createQuad2D(this.circles!.vertices, this.circles!.triangles, quadI,
-                    [this.colour, this.colour, this.colour, this.colour],
+                    [leftColour, leftColour, leftColour, leftColour],
                     [
                         { uv: [0, 0], radius: this.thickness / 2 },
                         { uv: [1, 0], radius: this.thickness / 2 },
@@ -117,6 +128,18 @@ export class Polyline {
                     ]
                 );
             }
+        }
+
+        if (this.ends == LineEnding.ROUND && lengthSq > EPSILON) {
+            createQuad2D(this.circles!.vertices, this.circles!.triangles, quadI + 4,
+                [rightColour, rightColour, rightColour, rightColour],
+                [
+                    { uv: [0, 0], radius: this.thickness / 2 },
+                    { uv: [1, 0], radius: this.thickness / 2 },
+                    { uv: [0, 1], radius: this.thickness / 2 },
+                    { uv: [1, 1], radius: this.thickness / 2 }
+                ]
+            );
         }
     }
 
@@ -133,13 +156,15 @@ export class Polyline {
     }
 
     refreshQuads() {
+        const halfThickness = this.thickness * 0.5;
+
         let lastPoint = this.points[0];
         for (let i = 1; i < this.points.length; i++) {
             let currPoint = this.points[i];
-            const quadI = i * 4;
+            const quadI = (i - 1) * 4;
 
             const normal = getNormal(lastPoint, currPoint);
-            const scaledNormal = vec2.scale(vec2.create(), normal, this.thickness / 2);
+            const scaledNormal = vec2.scale(vec2.create(), normal, halfThickness);
 
             resizeQuad2D(
                 vec2.add(vec2.create(), lastPoint, scaledNormal),// top left
@@ -159,26 +184,43 @@ export class Polyline {
         if (!this.circles)
             return;
 
-        for (let i = 0; i < this.points.length; i++) {
-            let currPoint = this.points[i];
-            const quadI = i * 4;
+        let currPoint = this.points[0];
+        for (let i = 1; i < this.points.length+1; i++) {
+            let nextPoint = i < this.points.length ? this.points[i] : this.points[i - 1];
+            const quadI = (i - 1) * 4;
 
-            // top left
-            this.circles.vertices[quadI + 0].vertex[0] = currPoint[0] - halfThickness;
-            this.circles.vertices[quadI + 0].vertex[1] = currPoint[1] - halfThickness;
+            const normal = getNormal(currPoint, nextPoint);
+            const scaledNormal = vec2.scale(vec2.create(), normal, halfThickness);
+            const rotatedNormal = vec2.fromValues(scaledNormal[1], -scaledNormal[0])
 
-            // top right
-            this.circles.vertices[quadI + 1].vertex[0] = currPoint[0] + halfThickness;
-            this.circles.vertices[quadI + 1].vertex[1] = currPoint[1] - halfThickness;
+            if (i >= this.points.length)
+                currPoint = nextPoint;
 
-            // bottom left
-            this.circles.vertices[quadI + 2].vertex[0] = currPoint[0] - halfThickness;
-            this.circles.vertices[quadI + 2].vertex[1] = currPoint[1] + halfThickness;
+            resizeQuad2D(
+                vec2.sub(vec2.create(), vec2.add(vec2.create(), currPoint, scaledNormal), rotatedNormal),// top left
+                vec2.add(vec2.create(), vec2.add(vec2.create(), currPoint, scaledNormal), rotatedNormal),// top right
+                vec2.sub(vec2.create(), vec2.sub(vec2.create(), currPoint, scaledNormal), rotatedNormal),// bottom left
+                vec2.add(vec2.create(), vec2.sub(vec2.create(), currPoint, scaledNormal), rotatedNormal),// bottom right,
+                this.circles.vertices, quadI
+            );
 
-            // bottom right
-            this.circles.vertices[quadI + 3].vertex[0] = currPoint[0] + halfThickness;
-            this.circles.vertices[quadI + 3].vertex[1] = currPoint[1] + halfThickness;
+            if (i < this.points.length - 1)
+                currPoint = nextPoint;
         }
+    }
+
+    lengthSq() {
+        let length = 0;
+        let prev = this.points[0];
+
+        for (let i = 1; i < this.points.length; i++) {
+            let xSq = this.points[i][0] - prev[0];
+            let ySq = this.points[i][1] - prev[1];
+            length += xSq * xSq + ySq * ySq;
+            prev = this.points[i];
+        }
+
+        return length;
     }
 
     remove() {
