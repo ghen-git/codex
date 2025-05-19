@@ -1,0 +1,5 @@
+self.onmessage = (e: MessageEvent) => {
+    console.log(e.data);
+    // const bitmapImg = parseFloat(e.data);
+    self.postMessage(-1);
+};

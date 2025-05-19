@@ -40,7 +40,7 @@ export class OrderedWorkerPool {
 
             this.setupWorkerDonePromise(this.currentWorkerIndex);
 
-            this.workers[this.currentWorkerIndex].postMessage(inputData);
+            this.workers[this.currentWorkerIndex].postMessage(inputData, [inputData]);
         });
     }
 
@@ -63,7 +63,7 @@ export class OrderedWorkerPool {
         const lastWorkerIndex = this.previous(workerIndex);
         const lastWorkerDone = this.workerDone[lastWorkerIndex];
 
-        if(!lastWorkerDone) // if the last worker isn't done
+        if (!lastWorkerDone) // if the last worker isn't done
             await this.workerDonePromises[lastWorkerIndex]; // wait for it to finish
 
         this.workerDone[workerIndex] = true;
