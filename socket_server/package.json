@@ -1,0 +1,14 @@
+{
+  "name": "socket_server",
+  "version": "0.0.0",
+  "license": "MIT",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.8.3",
+    "ws": "^8.18.2"
+  }
+}

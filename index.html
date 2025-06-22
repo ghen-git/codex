@@ -6,11 +6,22 @@
   <link rel="icon" type="image/svg+xml" href="/vite.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script type="module" src="/src/main.ts"></script>
+  <link href="/src/style.css" rel="stylesheet">
   <title>Codex Alpha</title>
 </head>
 
 <body>
-  <p id="hand_log"></p>
+  <div id="setup_screen" style="
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+    align-items: center;
+    justify-content: space-evenly;
+    flex-direction: column;
+  ">
+    <button id="start_receiver">Start as Receiver</button>
+    <button id="start_transmitter">Start as Transmitter</button>
+  </div>
   <video id="webcam_displayer" style="display: none;" autoplay playsinline></video>
 </body>
 

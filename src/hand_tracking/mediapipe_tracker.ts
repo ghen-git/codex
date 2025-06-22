@@ -1,31 +1,36 @@
 // import { OrderedWorkerPool } from '../workers/ordered_worker_pool';
 // import DetectionWorker from './workers/detection_worker?worker'
 import { HandLandmarker, FilesetResolver, HandLandmarkerResult } from '@mediapipe/tasks-vision'
-import { Hands } from './hand_processing/hand_types';
-import { LandmarkerResultFormatter } from './hand_processing/hand_serializer';
+import { HandsFast } from './hand_processing/hand_types';
+import { LandmarkerResultFormatter } from './hand_processing/mediapipe_serializer';
 
 export class MediapipeTracker {
     // workerPool: OrderedWorkerPool;
-    handEventHandler: (data: Hands) => void;
+    handEventHandler: (data: HandsFast, zImproved: boolean) => void;
     landmarker: HandLandmarker;
     lastFrame: number;
     video?: HTMLVideoElement;
     window: Window;
     running: boolean;
+    lastHandsFromZCamera?: HandsFast;
+    receivedZEnhancement: boolean;
+    blockUntilZEnhanced: boolean;
 
-    constructor(handEventHandler: (data: Hands) => void, landmarker: HandLandmarker, window: Window/*, nWorkers: number*/) {
+    constructor(handEventHandler: (data: HandsFast, zImproved: boolean) => void, landmarker: HandLandmarker, window: Window, blockUntilZEnhanced: boolean/*, nWorkers: number*/) {
         this.handEventHandler = handEventHandler;
         this.landmarker = landmarker;
         this.lastFrame = -1;
         this.window = window;
         this.running = false;
+        this.receivedZEnhancement = false;
+        this.blockUntilZEnhanced = blockUntilZEnhanced;
 
         // this.workerPool = new OrderedWorkerPool(nWorkers, DetectionWorker);
     }
 
-    public static async create(handEventHandler: (data: Hands) => void, window: Window) {
+    public static async create(handEventHandler: (data: HandsFast, zImproved: boolean) => void, window: Window, blockUntilZEnhanced: boolean = false) {
         const landmarker = await this.createLandmarker();
-        const tracker = new MediapipeTracker(handEventHandler, landmarker, window);
+        const tracker = new MediapipeTracker(handEventHandler, landmarker, window, blockUntilZEnhanced);
 
         await tracker.setupVideoStream(window);
 
@@ -34,9 +39,16 @@ export class MediapipeTracker {
 
     processLandmarks(result: HandLandmarkerResult) {
         try {
-            this.handEventHandler(LandmarkerResultFormatter.format(result, false, true));
+            const hands = LandmarkerResultFormatter.format(result, false, true);
+
+            if (this.receivedZEnhancement && this.lastHandsFromZCamera) {
+                LandmarkerResultFormatter.improveZ(hands, this.lastHandsFromZCamera);
+            }
+
+            this.handEventHandler(hands, this.receivedZEnhancement);
+            this.receivedZEnhancement = false;
         }
-        catch(ex) {
+        catch (ex) {
             console.warn(ex);
         }
     }
@@ -50,20 +62,26 @@ export class MediapipeTracker {
         };
 
         return new Promise<void>(resolve => {
-            window.navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
-                video.srcObject = stream;
-                video.addEventListener('loadeddata', () => {
-                    this.accessWebcamFrame();
-                    resolve();
-                });
-            })
+            try {
+                window.navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
+                    video.srcObject = stream;
+                    video.addEventListener('loadeddata', () => {
+                        this.accessWebcamFrame();
+                        resolve();
+                    });
+                })
+            } catch (e) {
+                alert(e);
+            }
         });
     }
 
     processWebcamFrame() {
         const startTimeMs = this.window.performance.now();
         const results = this.landmarker.detectForVideo(this.video!, startTimeMs);
-        this.processLandmarks(results);
+
+        if (!this.blockUntilZEnhanced || this.receivedZEnhancement)
+            this.processLandmarks(results);
     }
 
     accessWebcamFrame() {
@@ -87,6 +105,11 @@ export class MediapipeTracker {
         this.running = false;
     }
 
+    public updateZCameraHands(hands: HandsFast) {
+        this.lastHandsFromZCamera = hands;
+        this.receivedZEnhancement = true;
+    }
+
     static async createLandmarker() {
         const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm');
         return await HandLandmarker.createFromOptions(vision, {
@@ -95,7 +118,10 @@ export class MediapipeTracker {
                 delegate: 'GPU'
             },
             runningMode: 'VIDEO',
-            numHands: 2
+            numHands: 2,
+            minHandPresenceConfidence: 0.3,
+            minHandDetectionConfidence: 0.3,
+            minTrackingConfidence: 0.3
         });
     };
 

@@ -1,10 +1,10 @@
 import { Category, HandLandmarkerResult, NormalizedLandmark } from "@mediapipe/tasks-vision";
-import { Hand, Hands } from "./hand_types";
+import { HandFast, HandsFast } from "./hand_types";
 import { vec3 } from "gl-matrix";
 
 export class LandmarkerResultFormatter {
-    public static format(result: HandLandmarkerResult, fast: boolean = false, invertHands: boolean = false): Hands {
-        const hands: Hands = {
+    public static format(result: HandLandmarkerResult, fast: boolean = false, invertHands: boolean = false): HandsFast {
+        const hands: HandsFast = {
             leftIsTracked: false,
             rightIsTracked: false,
             none: result.handedness.length < 1 // checks if any hands are tracked
@@ -20,7 +20,46 @@ export class LandmarkerResultFormatter {
         return hands;
     }
 
-    static fillSingleHand(hands: Hands, handedness: Category[], landmarks: NormalizedLandmark[], fast: boolean, invertHands: boolean) {
+    public static improveZ(hands: HandsFast, bottomUpHands: HandsFast) {
+        if(hands.none)
+            return;
+
+        if(hands.left && bottomUpHands.left)
+            this.improveZHand(hands.left, bottomUpHands.left);
+        if(hands.right && bottomUpHands.right)
+            this.improveZHand(hands.right, bottomUpHands.right);
+    }
+
+    public static improveZHand(hand: HandFast, bottomUpHand: HandFast) {
+        hand.wrist[2] = bottomUpHand.wrist[1];
+
+        hand.thumb.metacarpal[2] = bottomUpHand.thumb.metacarpal[1];
+        hand.thumb.proximal[2] = bottomUpHand.thumb.proximal[1];
+        hand.thumb.middle[2] = bottomUpHand.thumb.middle[1];
+        hand.thumb.tip[2] = bottomUpHand.thumb.tip[1];
+
+        hand.index.metacarpal[2] = bottomUpHand.index.metacarpal[1];
+        hand.index.proximal[2] = bottomUpHand.index.proximal[1];
+        hand.index.middle[2] = bottomUpHand.index.middle[1];
+        hand.index.tip[2] = bottomUpHand.index.tip[1];
+
+        hand.middle.metacarpal[2] = bottomUpHand.middle.metacarpal[1];
+        hand.middle.proximal[2] = bottomUpHand.middle.proximal[1];
+        hand.middle.middle[2] = bottomUpHand.middle.middle[1];
+        hand.middle.tip[2] = bottomUpHand.middle.tip[1];
+
+        hand.ring.metacarpal[2] = bottomUpHand.ring.metacarpal[1];
+        hand.ring.proximal[2] = bottomUpHand.ring.proximal[1];
+        hand.ring.middle[2] = bottomUpHand.ring.middle[1];
+        hand.ring.tip[2] = bottomUpHand.ring.tip[1];
+
+        hand.pinky.metacarpal[2] = bottomUpHand.pinky.metacarpal[1];
+        hand.pinky.proximal[2] = bottomUpHand.pinky.proximal[1];
+        hand.pinky.middle[2] = bottomUpHand.pinky.middle[1];
+        hand.pinky.tip[2] = bottomUpHand.pinky.tip[1];
+    }
+
+    static fillSingleHand(hands: HandsFast, handedness: Category[], landmarks: NormalizedLandmark[], fast: boolean, invertHands: boolean) {
         let isRight = handedness[0].index == 1;
 
         if (invertHands)
@@ -42,13 +81,13 @@ export class LandmarkerResultFormatter {
         }
     }
 
-    static formatHand(landmarks: NormalizedLandmark[]): Hand {
+    static formatHand(landmarks: NormalizedLandmark[]): HandFast {
         return {
             wrist: vec3.fromValues(landmarks[0].x, landmarks[0].y, landmarks[0].z),
             thumb: {
-                link_to_wrist: vec3.fromValues(landmarks[1].x, landmarks[1].y, landmarks[1].z),
-                metacarpal: vec3.fromValues(landmarks[2].x, landmarks[2].y, landmarks[2].z),
-                proximal: vec3.fromValues(landmarks[3].x, landmarks[3].y, landmarks[3].z),
+                metacarpal: vec3.fromValues(landmarks[1].x, landmarks[1].y, landmarks[1].z),
+                proximal: vec3.fromValues(landmarks[2].x, landmarks[2].y, landmarks[2].z),
+                middle: vec3.fromValues(landmarks[3].x, landmarks[3].y, landmarks[3].z),
                 tip: vec3.fromValues(landmarks[4].x, landmarks[4].y, landmarks[4].z)
             },
             index: {
