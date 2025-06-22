@@ -16,15 +16,4 @@ export function setupDrawCalls() {
         fragmentShaderSource: lineQuadsFragment,
         projectionMatrix: createProjectionMatrix2d(),
     }, BlendFunction.NORMAL);
-
-    flatCirclesDrawCall = new DrawCall(window, {
-        backgroundColour: rgbToScreenSpace(17, 17, 17),
-        vertexShaderSource: lineCirclesVertex,
-        fragmentShaderSource: lineCirclesFragment,
-        projectionMatrix: createProjectionMatrix2d(),
-        additionalShaderData: {
-            initBuffers: FlatCircles.initAdditionalBuffers,
-            writeToBuffers: FlatCircles.writeToAdditionalBuffers
-        }
-    }, BlendFunction.PRESERVE_ALPHA);
 }

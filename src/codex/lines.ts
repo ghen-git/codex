@@ -9,7 +9,6 @@ export enum LineEnding {
     STRAIGHT
 }
 
-
 export class Polyline {
     ends: LineEnding;
     colour: vec4;
@@ -33,21 +32,73 @@ export class Polyline {
             scale: vec3.fromValues(1, 1, 1)
         };
 
-        if (this.ends == LineEnding.ROUND)
-            this.circles = {
-                triangles: [],
-                vertices: [],
-                position: vec3.create(),
-                rotation: quat.create(),
-                scale: vec3.fromValues(1, 1, 1)
-            };
-
         this.changePoints(points);
 
         flatQuadsDrawCall.addObject(this.quads);
+    }
 
-        if (this.ends == LineEnding.ROUND)
-            flatCirclesDrawCall.addObject(this.circles!);
+    private resize() {
+        this.quads.triangles = [];
+        this.quads.vertices = [];
+
+        const startDir = vec2.sub(vec2.create(), this.points[1], this.points[0]);
+        const startNormal = vec2.normalize(vec2.create(), vec2.fromValues(startDir[1], -startDir[0]));
+        const inverseStartNormal = vec2.scale(vec2.create(), startNormal, -1);
+        const halfThickness = this.thickness * 0.5;
+
+        let lastVertexPairIndex = 0;
+        this.quads.vertices.push(
+            this.vecToVertex(vec2.add(vec2.create(), this.points[0], vec2.scale(vec2.create(), startNormal, halfThickness))), // bottom left
+            this.vecToVertex(vec2.add(vec2.create(), this.points[0], vec2.scale(vec2.create(), inverseStartNormal, halfThickness))), // top left
+        )
+
+        let lastDir = vec2.normalize(vec2.create(), startDir);
+        let lastNormal = vec2.fromValues(lastDir[1], -lastDir[0]);
+
+        for (let i = 1; i < this.points.length - 1; i++) {
+            const dir = vec2.normalize(vec2.create(), vec2.sub(vec2.create(), this.points[i + 1], this.points[i]));
+            const avgDir = vec2.normalize(
+                vec2.create(), 
+                [(lastDir[0] + dir[0]) / 2,
+                (lastDir[1] + dir[1]) / 2]
+            );
+            const bottomNormal = vec2.fromValues(avgDir[1], -avgDir[0]);
+            const topNormal = vec2.scale(vec2.create(), bottomNormal, -1);
+
+            const scaledThickness = halfThickness / Math.abs(vec2.dot(bottomNormal, lastNormal));
+            this.quads.vertices.push(
+                this.vecToVertex(vec2.add(vec2.create(), this.points[i], vec2.scale(vec2.create(), bottomNormal, scaledThickness))), // bottom left
+                this.vecToVertex(vec2.add(vec2.create(), this.points[i], vec2.scale(vec2.create(), topNormal, scaledThickness))), // top left
+            )
+
+            this.quads.triangles.push(
+                [lastVertexPairIndex, lastVertexPairIndex + 1, lastVertexPairIndex + 2],
+                [lastVertexPairIndex + 1, lastVertexPairIndex + 3, lastVertexPairIndex + 2]
+            )
+
+            lastVertexPairIndex += 2;
+            lastDir = dir;
+            lastNormal = vec2.fromValues(lastDir[1], -lastDir[0]);
+        }
+
+        const lastI = this.points.length - 1;
+        const endDir = vec2.sub(vec2.create(), this.points[lastI], this.points[lastI - 1]);
+        const endNormal = vec2.normalize(vec2.create(), vec2.fromValues(endDir[1], -endDir[0]));
+        const inverseEndNormal = vec2.scale(vec2.create(), endNormal, -1);
+        this.quads.triangles.push(
+            [lastVertexPairIndex, lastVertexPairIndex + 1, lastVertexPairIndex + 2],
+            [lastVertexPairIndex + 1, lastVertexPairIndex + 3, lastVertexPairIndex + 2]
+        )
+        this.quads.vertices.push(
+            this.vecToVertex(vec2.add(vec2.create(), this.points[lastI], vec2.scale(vec2.create(), endNormal, halfThickness))), // bottom left
+            this.vecToVertex(vec2.add(vec2.create(), this.points[lastI], vec2.scale(vec2.create(), inverseEndNormal, halfThickness))), // top left
+        )
+
+        flatQuadsDrawCall.shouldUpdateBuffers = true;
+    }
+
+    vecToVertex(v: vec2) {
+        return { vertex: vec3.fromValues(v[0], v[1], 0), colour: this.colour, normal: vec3.create() }
     }
 
     movePoint(pointIndex: number, newPos: vec2) {
@@ -57,156 +108,13 @@ export class Polyline {
     }
 
     changePoints(points: vec2[]) {
-        if (points.length != this.points.length) {
-            this.points = points;
-            this.buildQuads();
-        }
-        else {
-            const approxLength = vec2.dist(this.points[0], this.points[this.points.length - 1]);
-            const newLength = vec2.dist(points[0], points[points.length - 1]);
-
-            if (approxLength < EPSILON && newLength > EPSILON ||
-                approxLength > EPSILON && newLength < EPSILON
-            ) {
-                this.points = points;
-                this.buildQuads();
-            }
-            else
-                this.points = points;
-        }
-
+        this.points = points;
         this.resize();
-    }
-
-    private resize() {
-        this.setThickness(this.thickness);
-
-        flatQuadsDrawCall.shouldUpdateBuffers = true;
-        const approxLength = vec2.dist(this.points[0], this.points[this.points.length - 1]);
-
-        if (this.ends == LineEnding.ROUND)
-            flatCirclesDrawCall.shouldUpdateBuffers = true;
-    }
-
-    buildQuads() {
-        this.quads.triangles = [];
-        this.quads.vertices = [];
-
-        if (this.ends == LineEnding.ROUND) {
-            this.circles!.triangles = [];
-            this.circles!.vertices = [];
-        }
-
-        const lengthSq = this.lengthSq();
-        let progress = 0;
-        let leftColour: vec4 = [0, 0, 0, 0];
-        let rightColour: vec4 = [0, 0, 0, 0];
-        let quadI = 0;
-
-        for (let i = 0; i < this.points.length - 1; i++) {
-            quadI = i * 4;
-
-            let xSq = this.points[i + 1][0] - this.points[i][0];
-            let ySq = this.points[i + 1][1] - this.points[i][1];
-            let step = xSq * xSq + ySq * ySq;
-            leftColour = lerpVec4(this.colour, [0, 0, 0, 0], progress / lengthSq);
-            rightColour = lerpVec4(this.colour, [0, 0, 0, 0], (progress + step) / lengthSq);
-            progress += step;
-
-            createQuad2D(this.quads.vertices, this.quads.triangles, quadI,
-                [leftColour, rightColour, leftColour, rightColour], []
-            );
-
-            if (this.ends == LineEnding.ROUND && lengthSq > EPSILON) {
-                createQuad2D(this.circles!.vertices, this.circles!.triangles, quadI,
-                    [leftColour, leftColour, leftColour, leftColour],
-                    [
-                        { uv: [0, 0], radius: this.thickness / 2 },
-                        { uv: [1, 0], radius: this.thickness / 2 },
-                        { uv: [0, 1], radius: this.thickness / 2 },
-                        { uv: [1, 1], radius: this.thickness / 2 }
-                    ]
-                );
-            }
-        }
-
-        if (this.ends == LineEnding.ROUND && lengthSq > EPSILON) {
-            createQuad2D(this.circles!.vertices, this.circles!.triangles, quadI + 4,
-                [rightColour, rightColour, rightColour, rightColour],
-                [
-                    { uv: [0, 0], radius: this.thickness / 2 },
-                    { uv: [1, 0], radius: this.thickness / 2 },
-                    { uv: [0, 1], radius: this.thickness / 2 },
-                    { uv: [1, 1], radius: this.thickness / 2 }
-                ]
-            );
-        }
     }
 
     setThickness(thickness: number) {
         this.thickness = thickness;
-
-        this.refreshQuads();
-
-        const approxLength = vec2.dist(this.points[0], this.points[this.points.length - 1]);
-        if (this.ends == LineEnding.ROUND && approxLength > EPSILON) {
-            this.circles!.vertices.forEach(v => v.additional!.radius = this.thickness / 2);
-            this.refreshCircles();
-        }
-    }
-
-    refreshQuads() {
-        const halfThickness = this.thickness * 0.5;
-
-        let lastPoint = this.points[0];
-        for (let i = 1; i < this.points.length; i++) {
-            let currPoint = this.points[i];
-            const quadI = (i - 1) * 4;
-
-            const normal = getNormal(lastPoint, currPoint);
-            const scaledNormal = vec2.scale(vec2.create(), normal, halfThickness);
-
-            resizeQuad2D(
-                vec2.add(vec2.create(), lastPoint, scaledNormal),// top left
-                vec2.add(vec2.create(), currPoint, scaledNormal),// top right
-                vec2.sub(vec2.create(), lastPoint, scaledNormal),// bottom left
-                vec2.sub(vec2.create(), currPoint, scaledNormal),// bottom right,
-                this.quads.vertices, quadI
-            );
-
-            lastPoint = currPoint;
-        }
-    }
-
-    refreshCircles() {
-        const halfThickness = this.thickness * 0.5;
-
-        if (!this.circles)
-            return;
-
-        let currPoint = this.points[0];
-        for (let i = 1; i < this.points.length+1; i++) {
-            let nextPoint = i < this.points.length ? this.points[i] : this.points[i - 1];
-            const quadI = (i - 1) * 4;
-
-            const normal = getNormal(currPoint, nextPoint);
-            const scaledNormal = vec2.scale(vec2.create(), normal, halfThickness);
-            const rotatedNormal = vec2.fromValues(scaledNormal[1], -scaledNormal[0])
-
-            if (i >= this.points.length)
-                currPoint = nextPoint;
-
-            resizeQuad2D(
-                vec2.sub(vec2.create(), vec2.add(vec2.create(), currPoint, scaledNormal), rotatedNormal),// top left
-                vec2.add(vec2.create(), vec2.add(vec2.create(), currPoint, scaledNormal), rotatedNormal),// top right
-                vec2.sub(vec2.create(), vec2.sub(vec2.create(), currPoint, scaledNormal), rotatedNormal),// bottom left
-                vec2.add(vec2.create(), vec2.sub(vec2.create(), currPoint, scaledNormal), rotatedNormal),// bottom right,
-                this.circles.vertices, quadI
-            );
-
-            if (i < this.points.length - 1)
-                currPoint = nextPoint;
-        }
+        this.resize();
     }
 
     lengthSq() {
@@ -225,10 +133,6 @@ export class Polyline {
 
     remove() {
         flatQuadsDrawCall.removeObject(this.quads);
-
-        if (this.ends == LineEnding.ROUND) {
-            flatCirclesDrawCall.removeObject(this.circles!);
-        }
     }
 }
 
@@ -320,9 +224,6 @@ export class Line {
 
         flatQuadsDrawCall.addObject(this.quads);
 
-        if (this.ends == LineEnding.ROUND)
-            flatCirclesDrawCall.addObject(this.circles!);
-
         this.resize();
     }
 
@@ -351,7 +252,6 @@ export class Line {
         if (this.ends == LineEnding.ROUND) {
             this.circles!.vertices.forEach(v => v.additional!.radius = this.thickness / 2);
             this.refreshCircles(lerpedA, lerpedB);
-            flatCirclesDrawCall.shouldUpdateBuffers = true;
         }
     }
 

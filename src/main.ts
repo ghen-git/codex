@@ -20,16 +20,16 @@ document.addEventListener('DOMContentLoaded', () => {
     resizeCanvas();
     setupRenderer(canvas);
 
-    for(let i = 0; i < 10; i++)
-        new CubicBezier(
-            [randInt(0, window.innerWidth), randInt(0, window.innerHeight)],
-            [randInt(0, window.innerWidth), randInt(0, window.innerHeight)],
-            [randInt(0, window.innerWidth), randInt(0, window.innerHeight)],
-            [randInt(0, window.innerWidth), randInt(0, window.innerHeight)],
-            [rand(0, 1), rand(0, 1), rand(0, 1), 1],
-            32,
-            LineEnding.ROUND
-        );
+    // for(let i = 0; i < 10; i++)
+    //     new CubicBezier(
+    //         [randInt(0, window.innerWidth), randInt(0, window.innerHeight)],
+    //         [randInt(0, window.innerWidth), randInt(0, window.innerHeight)],
+    //         [randInt(0, window.innerWidth), randInt(0, window.innerHeight)],
+    //         [randInt(0, window.innerWidth), randInt(0, window.innerHeight)],
+    //         [rand(0, 1), rand(0, 1), rand(0, 1), rand(0, 1)],
+    //         16,
+    //         LineEnding.ROUND
+    //     );
 
     animator = new Animator();
     animator.start()
@@ -69,7 +69,7 @@ window.addEventListener('mousemove', e => {
 })
 
 const startPos: vec2 = [0, 0];
-const nPoints = 10;
+const nPoints = 30;
 
 window.addEventListener('click', e => {
     const points: Point[] = [mousePos];

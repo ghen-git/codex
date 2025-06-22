@@ -74,10 +74,9 @@ export class Renderer {
         // const bg = this.backgroundColour;
         this.gl.clearColor(0, 0, 0, 0); // sets the value for the colour buffer bit
         this.gl.depthFunc(this.gl.LEQUAL); // sets the comparison to see if an object's z is closer than another to <=
-        this.gl.disable(this.gl.DEPTH_TEST); // activates depth testing (closer triangles get rendered on top of further ones)
+        this.gl.enable(this.gl.DEPTH_TEST); // activates depth testing (closer triangles get rendered on top of further ones)
         this.gl.enable(this.gl.BLEND);
-        this.gl.blendFunc(this.gl.ONE, this.gl.ONE);
-        this.gl.blendEquation(this.gl.MAX);
+        this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
 
         this.drawCalls.forEach(d => d.setup(this.gl));
         this.loopOnAnimationFrame();

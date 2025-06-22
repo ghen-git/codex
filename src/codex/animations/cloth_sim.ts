@@ -3,7 +3,7 @@ import { lerpVec2, normalize, randomOrderArray, vecFrom2Points } from "../../mat
 import { Line, LineEnding } from "../lines";
 
 const gravity = 0.005;
-const iterations = 5;
+const iterations = 15;
 
 export class ClothSim {
     points: Point[];

@@ -24,7 +24,7 @@ export class CubicBezier {
         this.refreshApproximation();
     }
 
-    private approximationAccuracy = 0.01;
+    private approximationAccuracy = 0.001;
     private maxDeCasteljauDepth = 5;
 
     private _a: vec2;
