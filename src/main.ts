@@ -6,6 +6,7 @@ import { vec3 } from "gl-matrix";
 import { cubeToUV } from "three/src/nodes/TSL.js";
 import { pinchingAny, touchingEachOthersTips } from "./hand_tracking/gestures/helper";
 import { MediapipeTracker } from "./hand_tracking/mediapipe_tracker";
+import { KeyboardMovement } from "./simulation/movement/keyboard";
 
 let world: World;
 
@@ -17,7 +18,14 @@ interface BlockBuilding {
 document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('setup_screen')!.hidden = true;
 
-    setup3DHands();
+    world = new World(window);
+
+    const cube = getCube(0xffffff);
+    world.scene.add(cube);
+
+    const movement = new KeyboardMovement(world, window);
+
+    // setup3DHands();
 });
 
 function setup3DHands() {

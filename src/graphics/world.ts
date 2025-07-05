@@ -5,6 +5,7 @@ export class World {
     public activeCamera: PerspectiveCamera;
 
     renderer: WebGLRenderer;
+    frameCallbacks: (() => void)[] = [];
 
     constructor(window: Window) {
         this.scene = new Scene();
@@ -26,6 +27,10 @@ export class World {
         this.scene.add(mesh);
     }
 
+    public runOnFrame(callback: () => void) {
+        this.frameCallbacks.push(callback);
+    }
+
     setupLighting() {
         const color = 0xFFFFFF;
         const intensity = 1;
@@ -40,6 +45,7 @@ export class World {
     }
 
     frame() {
+        this.frameCallbacks.forEach(callback => callback());
         this.renderer.render(this.scene, this.activeCamera);
     }
 }
