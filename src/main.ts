@@ -1,6 +1,6 @@
-import { BoxGeometry, Mesh, MeshBasicMaterial, MeshPhongMaterial, Quaternion, SphereGeometry, Vector3 } from "three";
+import { BoxGeometry, Color, Mesh, MeshBasicMaterial, MeshPhongMaterial, Quaternion, SphereGeometry, Vector3 } from "three";
 import { World } from "./graphics/world";
-import { Finger, FingerFast, HandFast, Hands, HandsFast } from "./hand_tracking/hand_processing/hand_types";
+import { Finger, FingerFast, Hand, HandFast, Hands, HandsFast } from "./hand_tracking/hand_processing/hand_types";
 import { UltraleapTracker } from "./hand_tracking/ultraleap_tracker";
 import { vec3 } from "gl-matrix";
 import { cubeToUV } from "three/src/nodes/TSL.js";
@@ -26,33 +26,34 @@ function setup3DHands() {
     document.getElementById('start_transmitter')!.addEventListener('click', setupTransmitter);
 }
 
-let depthThisFrame = false;
+let leftDepth = false;
+let rightDepth = false;
 
 async function setupReceiver() {
     document.getElementById('setup_screen')!.remove();
 
     world = new World(window);
     buildWorld();
-    world.moveCamera(new Vector3(5, 5, 5));
+    world.moveCamera(new Vector3(0, 0, 5));
     world.activeCamera.lookAt(0, 0, 0);
 
-    const tracker = await MediapipeTracker.create((handsFast: HandsFast, zImproved: boolean) => {
-        depthThisFrame = zImproved;
+    const tracker = await MediapipeTracker.create((handsFast: HandsFast, leftImproved: boolean, rightImproved: boolean) => {
+        leftDepth = leftImproved;
+        rightDepth = rightImproved;
         const hands = preprocessHands(handsFast);
-        if (hands.left)
-            console.log(hands.left.wrist.z);
         moveFingertips(hands);
         updateBlockBuilder(hands);
     }, window, true);
     tracker.start();
 
-    const socket = new WebSocket('ws://192.168.54.2:8400/', 'receiver');
+    const socket = new WebSocket('ws://192.168.1.73:8400/', 'receiver');
     socket.onmessage = (e) => {
         tracker.updateZCameraHands(JSON.parse(e.data));
     };
 }
 
-let lastHands: Hands;
+let lastLeft: Hand;
+let lastRight: Hand;
 
 function preprocessHands(handsFast: HandsFast): Hands {
     const hands: Hands = {
@@ -62,88 +63,96 @@ function preprocessHands(handsFast: HandsFast): Hands {
     }
 
     if (handsFast.left) {
-        if (lastHands && lastHands.left)
+        if (lastLeft)
             hands.left = {
-                wrist: trackerToWorld(handsFast.left.wrist, lastHands.left.wrist),
-                thumb: fingerToWorld(handsFast.left.thumb, lastHands.left.thumb),
-                index: fingerToWorld(handsFast.left.index, lastHands.left.index),
-                middle: fingerToWorld(handsFast.left.middle, lastHands.left.middle),
-                ring: fingerToWorld(handsFast.left.ring, lastHands.left.ring),
-                pinky: fingerToWorld(handsFast.left.pinky, lastHands.left.pinky)
+                wrist: trackerToWorld(handsFast.left.wrist, leftDepth, lastLeft.wrist),
+                thumb: fingerToWorld(handsFast.left.thumb, leftDepth, lastLeft.thumb),
+                index: fingerToWorld(handsFast.left.index, leftDepth, lastLeft.index),
+                middle: fingerToWorld(handsFast.left.middle, leftDepth, lastLeft.middle),
+                ring: fingerToWorld(handsFast.left.ring, leftDepth, lastLeft.ring),
+                pinky: fingerToWorld(handsFast.left.pinky, leftDepth, lastLeft.pinky)
             }
         else
             hands.left = {
-                wrist: trackerToWorld(handsFast.left.wrist),
-                thumb: fingerToWorld(handsFast.left.thumb),
-                index: fingerToWorld(handsFast.left.index),
-                middle: fingerToWorld(handsFast.left.middle),
-                ring: fingerToWorld(handsFast.left.ring),
-                pinky: fingerToWorld(handsFast.left.pinky)
+                wrist: trackerToWorld(handsFast.left.wrist, leftDepth),
+                thumb: fingerToWorld(handsFast.left.thumb, leftDepth),
+                index: fingerToWorld(handsFast.left.index, leftDepth),
+                middle: fingerToWorld(handsFast.left.middle, leftDepth),
+                ring: fingerToWorld(handsFast.left.ring, leftDepth),
+                pinky: fingerToWorld(handsFast.left.pinky, leftDepth)
             }
     }
     if (handsFast.right) {
-        if (lastHands && lastHands.right)
+        if (lastRight)
             hands.right = {
-                wrist: trackerToWorld(handsFast.right.wrist, lastHands.right.wrist),
-                thumb: fingerToWorld(handsFast.right.thumb, lastHands.right.thumb),
-                index: fingerToWorld(handsFast.right.index, lastHands.right.index),
-                middle: fingerToWorld(handsFast.right.middle, lastHands.right.middle),
-                ring: fingerToWorld(handsFast.right.ring, lastHands.right.ring),
-                pinky: fingerToWorld(handsFast.right.pinky, lastHands.right.pinky)
+                wrist: trackerToWorld(handsFast.right.wrist, rightDepth, lastRight.wrist),
+                thumb: fingerToWorld(handsFast.right.thumb, rightDepth, lastRight.thumb),
+                index: fingerToWorld(handsFast.right.index, rightDepth, lastRight.index),
+                middle: fingerToWorld(handsFast.right.middle, rightDepth, lastRight.middle),
+                ring: fingerToWorld(handsFast.right.ring, rightDepth, lastRight.ring),
+                pinky: fingerToWorld(handsFast.right.pinky, rightDepth, lastRight.pinky)
             }
         else
             hands.right = {
-                wrist: trackerToWorld(handsFast.right.wrist),
-                thumb: fingerToWorld(handsFast.right.thumb),
-                index: fingerToWorld(handsFast.right.index),
-                middle: fingerToWorld(handsFast.right.middle),
-                ring: fingerToWorld(handsFast.right.ring),
-                pinky: fingerToWorld(handsFast.right.pinky)
+                wrist: trackerToWorld(handsFast.right.wrist, rightDepth),
+                thumb: fingerToWorld(handsFast.right.thumb, rightDepth),
+                index: fingerToWorld(handsFast.right.index, rightDepth),
+                middle: fingerToWorld(handsFast.right.middle, rightDepth),
+                ring: fingerToWorld(handsFast.right.ring, rightDepth),
+                pinky: fingerToWorld(handsFast.right.pinky, rightDepth)
             }
     }
 
-    lastHands = hands;
+    if (hands.left)
+        lastLeft = hands.left;
+    if (hands.right)
+        lastRight = hands.right;
     return hands;
 }
 
-function fingerToWorld(finger: FingerFast, oldFinger?: Finger) {
+function fingerToWorld(finger: FingerFast, depth: boolean, oldFinger?: Finger) {
     if (oldFinger)
         return {
-            metacarpal: trackerToWorld(finger.metacarpal, oldFinger.metacarpal),
-            proximal: trackerToWorld(finger.proximal, oldFinger.proximal),
-            middle: trackerToWorld(finger.middle, oldFinger.middle),
-            tip: trackerToWorld(finger.tip, oldFinger.tip),
+            metacarpal: trackerToWorld(finger.metacarpal, depth, oldFinger.metacarpal),
+            proximal: trackerToWorld(finger.proximal, depth, oldFinger.proximal),
+            middle: trackerToWorld(finger.middle, depth, oldFinger.middle),
+            tip: trackerToWorld(finger.tip, depth, oldFinger.tip),
         }
     else
         return {
-            metacarpal: trackerToWorld(finger.metacarpal),
-            proximal: trackerToWorld(finger.proximal),
-            middle: trackerToWorld(finger.middle),
-            tip: trackerToWorld(finger.tip),
+            metacarpal: trackerToWorld(finger.metacarpal, depth),
+            proximal: trackerToWorld(finger.proximal, depth),
+            middle: trackerToWorld(finger.middle, depth),
+            tip: trackerToWorld(finger.tip, depth),
         }
 }
 
-function trackerToWorld(trackerVec3: vec3, oldVec?: Vector3) {
+function trackerToWorld(trackerVec3: vec3, depth: boolean, oldVec?: Vector3) {
     const v = new Vector3(-trackerVec3[0], -trackerVec3[1], trackerVec3[2]);
-    v.multiplyScalar(10);
-    v.add(new Vector3(2.5, 2.5, -1));
+    v.multiplyScalar(9);
+    v.add(new Vector3(2.5, 2.5, -5));
 
     if (!oldVec)
         return v;
 
-    if(!depthThisFrame) 
+    if (!depth)
         v.setZ(oldVec.z);
-    v.lerpVectors(v, oldVec, 0.5);
+    v.setZ(v.z * 3)
+    v.lerpVectors(v, oldVec, 0.3);
+
     return v;
 }
 
 function setupTransmitter() {
     document.getElementById('setup_screen')!.remove();
 
-    const socket = new WebSocket('ws://192.168.54.2:8400/', 'transmitter');
+    const socket = new WebSocket('ws://192.168.1.73:8400/', 'transmitter');
     socket.onopen = async () => {
         const tracker = await MediapipeTracker.create((hands: HandsFast) => {
-            socket.send(JSON.stringify(hands));
+            document.getElementById('text_output')!.innerText = JSON.stringify(hands);
+
+            if (!hands.none)
+                socket.send(JSON.stringify(hands));
         }, window);
         tracker.start();
     };
@@ -164,7 +173,7 @@ function createFingertips() {
 }
 
 function moveFingertips(hands: Hands) {
-    if (hands.left) {
+    if (hands.left && leftDepth) {
         leftFingertipCursors[0].position.set(hands.left.thumb.tip.x, hands.left.thumb.tip.y, hands.left.thumb.tip.z);
         leftFingertipCursors[1].position.set(hands.left.index.tip.x, hands.left.index.tip.y, hands.left.index.tip.z);
         leftFingertipCursors[2].position.set(hands.left.middle.tip.x, hands.left.middle.tip.y, hands.left.middle.tip.z);
@@ -186,7 +195,7 @@ function moveFingertips(hands: Hands) {
         leftFingertipCursors[18].position.set(hands.left.ring.metacarpal.x, hands.left.ring.metacarpal.y, hands.left.ring.metacarpal.z);
         leftFingertipCursors[19].position.set(hands.left.pinky.metacarpal.x, hands.left.pinky.metacarpal.y, hands.left.pinky.metacarpal.z);
     }
-    if (hands.right) {
+    if (hands.right && rightDepth) {
         rightFingertipCursors[0].position.set(hands.right.thumb.tip.x, hands.right.thumb.tip.y, hands.right.thumb.tip.z);
         rightFingertipCursors[1].position.set(hands.right.index.tip.x, hands.right.index.tip.y, hands.right.index.tip.z);
         rightFingertipCursors[2].position.set(hands.right.middle.tip.x, hands.right.middle.tip.y, hands.right.middle.tip.z);
@@ -221,7 +230,7 @@ function updateBlockBuilder(hands: Hands) {
             pinchingAny(hands.left) &&
             pinchingAny(hands.right) &&
             touchingEachOthersTips(hands.left, hands.right)) {
-            const cube = getCube(0xffffff);
+            const cube = getCube(Math.random() * 0xffffff);
             console.log('yoo');
             blockBuildingState = {
                 cube: cube,

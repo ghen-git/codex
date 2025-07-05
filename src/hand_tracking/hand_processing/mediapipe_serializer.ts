@@ -20,14 +20,25 @@ export class LandmarkerResultFormatter {
         return hands;
     }
 
-    public static improveZ(hands: HandsFast, bottomUpHands: HandsFast) {
-        if(hands.none)
-            return;
+    public static improveZ(hands: HandsFast, bottomUpHands: HandsFast): { left: boolean; right: boolean; } {
+        const improvements = {
+            left: false,
+            right: false
+        };
 
-        if(hands.left && bottomUpHands.left)
+        if (hands.none)
+            return improvements;
+
+        if (hands.left && bottomUpHands.left) {
             this.improveZHand(hands.left, bottomUpHands.left);
-        if(hands.right && bottomUpHands.right)
+            improvements.left = true;
+        }
+        if (hands.right && bottomUpHands.right) {
             this.improveZHand(hands.right, bottomUpHands.right);
+            improvements.right = true;
+        }
+
+        return improvements;
     }
 
     public static improveZHand(hand: HandFast, bottomUpHand: HandFast) {
