@@ -1,6 +1,6 @@
-import { BoxGeometry, Mesh, MeshBasicMaterial, MeshPhongMaterial, Quaternion, SphereGeometry, Vector3 } from "three";
+import { BoxGeometry, Mesh, MeshBasicMaterial, MeshPhongMaterial, PlaneHelper, Quaternion, Raycaster, SphereGeometry, Vector3 } from "three";
 import { World } from "./graphics/world";
-import { Finger, FingerFast, HandFast, Hands, HandsFast } from "./hand_tracking/hand_processing/hand_types";
+import { Finger, FingerFast, Hand, HandFast, Hands, HandsFast } from "./hand_tracking/hand_processing/hand_types";
 import { UltraleapTracker } from "./hand_tracking/ultraleap_tracker";
 import { vec3 } from "gl-matrix";
 import { cubeToUV } from "three/src/nodes/TSL.js";
@@ -9,6 +9,7 @@ import { MediapipeTracker } from "./hand_tracking/mediapipe_tracker";
 import { KeyboardMovement } from "./simulation/movement/keyboard";
 
 let world: World;
+const ip = '192.168.1.152';
 
 interface BlockBuilding {
     cube: Mesh,
@@ -18,20 +19,86 @@ interface BlockBuilding {
 document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('setup_screen')!.hidden = true;
 
-    world = new World(window);
+    // world = new World(window);
 
-    const cube = getCube(0xffffff);
-    world.scene.add(cube);
+    // const cube = getCube(0xffffff);
+    // world.scene.add(cube);
 
-    const movement = new KeyboardMovement(world, window);
+    // const movement = new KeyboardMovement(world, window);
 
-    // setup3DHands();
+    setup3DHands();
 });
+
+function buildWorld() {
+    createFingertips();
+    // getCube()
+}
+
+const state = {
+    closedFist: false,
+    closedFistThisFrame: false,
+    passedFistCheckForFrames: 0
+}
+
+function handsFrame(hands: Hands) {
+    moveFingertips(hands);
+    updateBlockBuilder(hands);
+    if(!hands.left)
+        return;
+
+    runClosedFistDetection(hands.left);
+    if(!state.closedFist) {
+        const raycaster = new Raycaster();
+        const direction = findPalmNormal(hands.left);
+        const origin = hands.left.wrist.clone().add(hands.left.middle.metacarpal).multiplyScalar(0.5);
+
+        raycaster.set(origin, direction);
+        raycaster.intersectObjects(world.scene.children, false, )
+    }
+
+    if(state.closedFist) {
+        
+    }
+}
+
+function findPalmNormal(hand: Hand) {
+    const v1 = hand.index.metacarpal.clone().sub(hand.wrist);
+    const v2 = hand.pinky.metacarpal.clone().sub(hand.index.metacarpal);
+
+    const normal = v1.cross(v2);
+    return normal.normalize();
+}
+
+function runClosedFistDetection(hand: Hand) {
+    const closedFistCheck = hand.middle.metacarpal.distanceTo(hand.middle.tip) < 2.5;
+    
+    if(closedFistCheck && !state.closedFist) {
+        state.passedFistCheckForFrames++;
+    }
+
+    if(state.closedFistThisFrame)
+        state.closedFistThisFrame = false;
+
+    if(state.passedFistCheckForFrames > 5) {
+        state.closedFist = true;
+        state.closedFistThisFrame = true;
+        state.passedFistCheckForFrames = 0;
+    }
+
+    if(!closedFistCheck && state.passedFistCheckForFrames > 0) {
+        state.passedFistCheckForFrames = 0;
+    }
+
+    if(!closedFistCheck && state.closedFist) {
+        state.closedFist = false;
+    }
+}
 
 function setup3DHands() {
     document.getElementById('setup_screen')!.hidden = false;
     document.getElementById('start_receiver')!.addEventListener('click', setupReceiver);
     document.getElementById('start_transmitter')!.addEventListener('click', setupTransmitter);
+    document.getElementById('ip_display')!.innerText += 'http://' + ip + ':5173';
 }
 
 let depthThisFrame = false;
@@ -41,20 +108,17 @@ async function setupReceiver() {
 
     world = new World(window);
     buildWorld();
-    world.moveCamera(new Vector3(5, 5, 5));
+    world.moveCamera(new Vector3(0, 0, 5));
     world.activeCamera.lookAt(0, 0, 0);
 
     const tracker = await MediapipeTracker.create((handsFast: HandsFast, zImproved: boolean) => {
         depthThisFrame = zImproved;
         const hands = preprocessHands(handsFast);
-        if (hands.left)
-            console.log(hands.left.wrist.z);
-        moveFingertips(hands);
-        updateBlockBuilder(hands);
+        handsFrame(hands);
     }, window, true);
     tracker.start();
 
-    const socket = new WebSocket('ws://192.168.54.2:8400/', 'receiver');
+    const socket = new WebSocket(`ws://${ip}:8400/`, 'receiver');
     socket.onmessage = (e) => {
         tracker.updateZCameraHands(JSON.parse(e.data));
     };
@@ -148,7 +212,7 @@ function trackerToWorld(trackerVec3: vec3, oldVec?: Vector3) {
 function setupTransmitter() {
     document.getElementById('setup_screen')!.remove();
 
-    const socket = new WebSocket('ws://192.168.54.2:8400/', 'transmitter');
+    const socket = new WebSocket(`ws://${ip}:8400/`, 'transmitter');
     socket.onopen = async () => {
         const tracker = await MediapipeTracker.create((hands: HandsFast) => {
             socket.send(JSON.stringify(hands));
@@ -244,10 +308,6 @@ function updateBlockBuilder(hands: Hands) {
             blockBuildingState.scaling = false;
         }
     }
-}
-
-function buildWorld() {
-    createFingertips();
 }
 
 function stickTopAndBottomToPoints(cube: Mesh, top: Vector3, bottom: Vector3) {

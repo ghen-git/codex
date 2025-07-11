@@ -12,13 +12,15 @@
 
 <body>
   <div id="setup_screen" style="
-    display: none;
+    display: flex;
     width: 100vw;
     height: 100vh;
     align-items: center;
     justify-content: space-evenly;
     flex-direction: column;
   ">
+    <p>chrome://flags/unsafely-allow-insecure-origin-as-secure</p>
+    <p id="ip_display">IP: </p>
     <button id="start_receiver">Start as Receiver</button>
     <button id="start_transmitter">Start as Transmitter</button>
   </div>
