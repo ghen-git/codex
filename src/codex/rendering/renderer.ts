@@ -35,8 +35,11 @@ export class Renderer {
     }
 
     public resizeCanvas() {
-        this.canvas.width = window.innerWidth;
-        this.canvas.height = window.innerHeight;
+        this.canvas.width = this.window.innerWidth;
+        this.canvas.height = this.window.innerHeight;
+
+        this.gl.viewport(0, 0, this.window.innerWidth, this.window.innerHeight);
+        this.shaderPrograms.forEach(program => program.updateWindowSize(this.window.innerWidth, this.window.innerHeight));
     }
 
     /**
@@ -44,7 +47,7 @@ export class Renderer {
      */
     start() {
         // const bg = this.backgroundColour;
-        this.gl.clearColor(0, 0, 0, 0); // sets the value for the colour buffer bit
+        this.gl.clearColor(0, 0, 0, 1); // sets the value for the colour buffer bit
 
         // 3d with depth testing
         // this.gl.depthFunc(this.gl.LEQUAL); // sets the comparison to see if an object's z is closer than another to <=

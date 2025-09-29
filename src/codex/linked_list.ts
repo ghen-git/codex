@@ -77,6 +77,7 @@ export class LinkedList<T> {
         while (currNode != null) {
             iterationCallback(currNode.value, i, currNode);
             currNode = currNode.next;
+            i++;
         }
     }
 }

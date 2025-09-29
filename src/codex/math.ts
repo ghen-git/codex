@@ -157,6 +157,10 @@ export function rotate180(v: vec2) {
     return [-v[0], -v[1]];
 }
 
+export function lerp(n1: number, n2: number, t: number) {
+    return (1 - t) * n1 + n2 * t;
+}
+
 export function lerpVec2(p1: vec2, p2: vec2, t: number) {
     return vec2.fromValues(
         (1 - t) * p1[0] + p2[0] * t,
@@ -173,10 +177,9 @@ export function lerpVec4(p1: vec4, p2: vec4, t: number) {
     );
 }
 
-export function lerp(n1: number, n2: number, t: number) {
-    return (1 - t) * n1 + n2 * t;
-}
-
+/**
+ * used mainly for the cloth sim
+ */
 export function randomOrderArray(length: number) {
     const arr: any[] = [];
 
@@ -194,6 +197,9 @@ export function randomOrderArray(length: number) {
     return arr;
 }
 
+/**
+ * learned from [this article](https://www.songho.ca/opengl/gl_projectionmatrix.html)
+ */
 export function createProjectionMatrix(width: number, height: number, fov: number, near: number, far: number) {
     const aspectRatio = width / height;
 

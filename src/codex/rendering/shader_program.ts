@@ -36,7 +36,8 @@ export interface ShaderProgramSettings {
     setBlendingOptions?: (gl: WebGL2RenderingContext) => void,
     projectionMatrix?: mat4,
     customBuffers?: AdditionalBuffers,
-    manualMeshRendering?: (program: ShaderProgram, gl: WebGL2RenderingContext) => void
+    manualDrawCalls?: (program: ShaderProgram, gl: WebGL2RenderingContext) => void,
+    onWindowResized?: (program: ShaderProgram, gl: WebGL2RenderingContext, newWidth: number, newHeight: number) => void,
 }
 
 export interface AdditionalBuffers {
@@ -103,10 +104,11 @@ export class ShaderProgram {
             vao: this.gl.createVertexArray()!
         }
 
+        this.gl.useProgram(program);
+
         if (this.settings.customBuffers !== undefined)
             this.settings.customBuffers.init(this, this.gl);
 
-        this.gl.useProgram(program);
         // needs to be called everytime the meshes change
         this.writeBuffers();
 
@@ -174,8 +176,8 @@ export class ShaderProgram {
 
         this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, this.renderingData.indexBuffer); // binds indices buffer
 
-        if (this.settings.manualMeshRendering !== undefined) {
-            this.settings.manualMeshRendering(this, this.gl);
+        if (this.settings.manualDrawCalls !== undefined) {
+            this.settings.manualDrawCalls(this, this.gl);
         }
         else {
             // tells the GPU to draw all the meshes
@@ -224,8 +226,6 @@ export class ShaderProgram {
         this.writePositionBuffer(positions);
         this.writeIndexBuffer(indices);
 
-        console.log(positions);
-
         if (this.settings.customBuffers !== undefined)
             this.settings.customBuffers.write(this, this.gl);
     }
@@ -253,5 +253,10 @@ export class ShaderProgram {
 
         this.gl.bindBuffer(this.gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
         this.gl.bufferData(this.gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(indices), this.gl.STATIC_DRAW);
+    }
+
+    public updateWindowSize(newWidth: number, newHeight: number) {
+        if(this.settings.onWindowResized)
+            this.settings.onWindowResized(this, this.gl, newWidth, newHeight);
     }
 }
