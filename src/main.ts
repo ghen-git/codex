@@ -1,4 +1,4 @@
-import { BoxGeometry, Mesh, MeshBasicMaterial, MeshPhongMaterial, PlaneHelper, Quaternion, Raycaster, SphereGeometry, Vector3 } from "three";
+import { BoxGeometry, Mesh, MeshBasicMaterial, MeshPhongMaterial, Object3DEventMap, PlaneHelper, Quaternion, Raycaster, SphereGeometry, Vector3 } from "three";
 import { World } from "./graphics/world";
 import { Finger, FingerFast, Hand, HandFast, Hands, HandsFast } from "./hand_tracking/hand_processing/hand_types";
 import { UltraleapTracker } from "./hand_tracking/ultraleap_tracker";
@@ -9,7 +9,7 @@ import { MediapipeTracker } from "./hand_tracking/mediapipe_tracker";
 import { KeyboardMovement } from "./simulation/movement/keyboard";
 
 let world: World;
-const ip = '192.168.1.152';
+const ip = '192.168.1.9';
 
 interface BlockBuilding {
     cube: Mesh,
@@ -29,9 +29,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     setup3DHands();
 });
 
+let rotationDisplayer: Mesh<BoxGeometry, MeshPhongMaterial, Object3DEventMap>;
+let basisForward: Mesh<BoxGeometry, MeshPhongMaterial, Object3DEventMap>;
+let basisUp: Mesh<BoxGeometry, MeshPhongMaterial, Object3DEventMap>;
+let basisRight: Mesh<BoxGeometry, MeshPhongMaterial, Object3DEventMap>;
 function buildWorld() {
     createFingertips();
-    // getCube()
+    rotationDisplayer = getCube(0xffffff, 3);
+    basisForward = getCube(0xff0000);
+    basisUp = getCube(0x00ff00);
+    basisRight = getCube(0x0000ff);
+    world.add(rotationDisplayer);
+    world.add(basisForward);
+    world.add(basisUp);
+    world.add(basisRight);
 }
 
 const state = {
@@ -43,25 +54,94 @@ const state = {
 function handsFrame(hands: Hands) {
     moveFingertips(hands);
     updateBlockBuilder(hands);
-    if(!hands.left)
+    if (!hands.left)
         return;
 
-    runClosedFistDetection(hands.left);
-    if(!state.closedFist) {
-        const raycaster = new Raycaster();
-        const direction = findPalmNormal(hands.left);
-        const origin = hands.left.wrist.clone().add(hands.left.middle.metacarpal).multiplyScalar(0.5);
+    const rotation = findRotation(hands.left);
+    rotationDisplayer.setRotationFromQuaternion(rotation);
 
-        raycaster.set(origin, direction);
-        raycaster.intersectObjects(world.scene.children, false, )
-    }
+    // runClosedFistDetection(hands.left);
+    // if(!state.closedFist) {
+    //     const raycaster = new Raycaster();
+    //     const direction = findPalmNormal(hands.left);
+    //     const origin = hands.left.wrist.clone().add(hands.left.middle.metacarpal).multiplyScalar(0.5);
 
-    if(state.closedFist) {
-        
-    }
+    //     raycaster.set(origin, direction);
+    //     raycaster.intersectObjects(world.scene.children, false, )
+    // }
+
+    // if(state.closedFist) {
+
+    // }
 }
 
-function findPalmNormal(hand: Hand) {
+function findRotation(hand: Hand) {
+    const v1 = hand.index.metacarpal.clone().sub(hand.wrist).normalize();
+    const v2 = hand.pinky.metacarpal.clone().sub(hand.index.metacarpal).normalize();
+
+    const normal = v1.clone().cross(v2);
+    const up = normal.normalize();
+    const right = v1.clone().cross(up).normalize();
+    const forward = right.clone().cross(up).multiplyScalar(-1).normalize();
+
+    // const origin = hand.wrist.clone().add(hand.middle.metacarpal).multiplyScalar(0.5);
+    // stickTopAndBottomToPoints(basisForward, origin, origin.clone().add(forward.clone().multiplyScalar(10)));
+    // stickTopAndBottomToPoints(basisUp, origin, origin.clone().add(up.clone().multiplyScalar(10)));
+    // stickTopAndBottomToPoints(basisRight, origin, origin.clone().add(right.clone().multiplyScalar(10)));
+
+    return quaternionFromBasis(forward, up, right);
+}
+
+function quaternionFromBasis(forward: Vector3, up: Vector3, right: Vector3) {
+    const rotation = new Quaternion();
+    const m11 = forward.x, m12 = forward.y, m13 = forward.z,
+        m21 = up.x, m22 = up.y, m23 = up.z,
+        m31 = right.x, m32 = right.y, m33 = right.z,
+        trace = m11 + m22 + m33;
+
+    if (trace > 0) {
+
+        const s = 0.5 / Math.sqrt(trace + 1.0);
+
+        rotation.w = 0.25 / s;
+        rotation.x = -(m32 - m23) * s;
+        rotation.y = -(m13 - m31) * s;
+        rotation.z = -(m21 - m12) * s;
+
+    } else if (m11 > m22 && m11 > m33) {
+
+        const s = 2.0 * Math.sqrt(1.0 + m11 - m22 - m33);
+
+        rotation.w = (m32 - m23) / s;
+        rotation.x = -0.25 * s;
+        rotation.y = -(m12 + m21) / s;
+        rotation.z = -(m13 + m31) / s;
+
+    } else if (m22 > m33) {
+
+        const s = 2.0 * Math.sqrt(1.0 + m22 - m11 - m33);
+
+        rotation.w = (m13 - m31) / s;
+        rotation.x = -(m12 + m21) / s;
+        rotation.y = -0.25 * s;
+        rotation.z = -(m23 + m32) / s;
+
+    } else {
+
+        const s = 2.0 * Math.sqrt(1.0 + m33 - m11 - m22);
+
+        rotation.w = (m21 - m12) / s;
+        rotation.x = -(m13 + m31) / s;
+        rotation.y = -(m23 + m32) / s;
+        rotation.z = -0.25 * s;
+
+    }
+
+    return rotation;
+
+}
+
+function findPalmNormals(hand: Hand) {
     const v1 = hand.index.metacarpal.clone().sub(hand.wrist);
     const v2 = hand.pinky.metacarpal.clone().sub(hand.index.metacarpal);
 
@@ -71,27 +151,43 @@ function findPalmNormal(hand: Hand) {
 
 function runClosedFistDetection(hand: Hand) {
     const closedFistCheck = hand.middle.metacarpal.distanceTo(hand.middle.tip) < 2.5;
-    
-    if(closedFistCheck && !state.closedFist) {
+
+    if (closedFistCheck && !state.closedFist) {
         state.passedFistCheckForFrames++;
     }
 
-    if(state.closedFistThisFrame)
+    if (state.closedFistThisFrame)
         state.closedFistThisFrame = false;
 
-    if(state.passedFistCheckForFrames > 5) {
+    if (state.passedFistCheckForFrames > 5) {
         state.closedFist = true;
         state.closedFistThisFrame = true;
         state.passedFistCheckForFrames = 0;
     }
 
-    if(!closedFistCheck && state.passedFistCheckForFrames > 0) {
+    if (!closedFistCheck && state.passedFistCheckForFrames > 0) {
         state.passedFistCheckForFrames = 0;
     }
 
-    if(!closedFistCheck && state.closedFist) {
+    if (!closedFistCheck && state.closedFist) {
         state.closedFist = false;
     }
+}
+
+async function setup2DHands() {
+    document.getElementById('setup_screen')!.remove();
+
+    world = new World(window);
+    buildWorld();
+    world.moveCamera(new Vector3(0, 0, 5));
+    world.activeCamera.lookAt(0, 0, 0);
+
+    const tracker = await MediapipeTracker.create((handsFast: HandsFast, zImproved: boolean) => {
+        depthThisFrame = zImproved;
+        const hands = preprocessHands(handsFast);
+        handsFrame(hands);
+    }, window, false);
+    tracker.start();
 }
 
 function setup3DHands() {
@@ -203,7 +299,7 @@ function trackerToWorld(trackerVec3: vec3, oldVec?: Vector3) {
     if (!oldVec)
         return v;
 
-    if(!depthThisFrame) 
+    if (!depthThisFrame)
         v.setZ(oldVec.z);
     v.lerpVectors(v, oldVec, 0.5);
     return v;
@@ -315,20 +411,20 @@ function stickTopAndBottomToPoints(cube: Mesh, top: Vector3, bottom: Vector3) {
     const midPoint = top.clone().lerp(bottom, 0.5);
     cube.position.set(midPoint.x, midPoint.y, midPoint.z);
     cube.lookAt(top);
-    cube.scale.x = distance;
-    cube.scale.y = distance;
+    // cube.scale.x = distance;
+    // cube.scale.y = distance;
     cube.scale.z = distance;
 }
 
-function getCube(color: number) {
+function getCube(color: number, scale: number = 0.1) {
     const geometry = new BoxGeometry(1, 1, 1); const material = new MeshPhongMaterial({
         color: color,    // red (can also use a CSS color string here)
         flatShading: true,
     });
     const cube = new Mesh(geometry, material);
-    cube.scale.x = 0.1;
-    cube.scale.y = 0.1;
-    cube.scale.z = 0.1;
+    cube.scale.x = scale;
+    cube.scale.y = scale;
+    cube.scale.z = scale;
 
     return cube;
 }
