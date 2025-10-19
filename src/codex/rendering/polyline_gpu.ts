@@ -4,7 +4,7 @@ import { CodexRenderer } from "./codex_renderer";
 import { axisAngleToRotationMatrix, EPSILON, rand, rotateVectorWithMatrix } from "../math";
 import { MeshBuilder } from "./meshes/mesh_builder";
 
-export class Polyline {
+export class PolylineGPU {
     colour: vec4;
     mesh: RenderableMesh;
     circles?: RenderableMesh;

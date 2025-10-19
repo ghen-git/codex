@@ -57,7 +57,7 @@ export class ShaderProgram {
     // @ts-expect-error
     public renderingData: RenderingData;
     public meshes: LinkedList<RenderableMesh>;
-    private settings: ShaderProgramSettings;
+    settings: ShaderProgramSettings;
     shouldUpdateBuffers: boolean = false;
 
     constructor(window: Window, settings: ShaderProgramSettings) {

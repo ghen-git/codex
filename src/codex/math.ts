@@ -18,6 +18,18 @@ export function axisAngleToQuat(axisAngle: vec4) {
     )
 }
 
+export function axisAngleToRotationMatrix(axisAngle: vec4) {
+    const quat = axisAngleToQuat(axisAngle);
+    const matrix = quaternionToRotationMatrix(quat);
+    return matrix;
+}
+
+export function rotateVectorWithMatrix(v: vec3, rotationMatrix: mat4) {
+    const v4 = vec4.fromValues(v[0], v[1], v[2], 1);
+    vec4.transformMat4(v4, v4, rotationMatrix);
+    return vec3.fromValues(v4[0], v4[1], v4[2]);
+}
+
 export function quatToAxisAngle(quat: quat) {
     const angle = Math.acos(quat[3]) * 2;
 

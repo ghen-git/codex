@@ -1,19 +1,18 @@
 import { quat, vec3, vec4 } from "gl-matrix";
-import { RenderableMesh } from "../shader_program";
-import { randInt } from "../../math";
+import { RenderableMesh, Triangle, Vertex } from "../shader_program";
 
 export class MeshBuilder {
     public static buildBox(sizeX: number, sizeY: number, sizeZ: number, colour: vec4): RenderableMesh {
         const mesh: RenderableMesh = {
             vertices: [
-                {position: [-sizeX / 2, -sizeY / 2, -sizeZ / 2]},
-                {position: [sizeX / 2, -sizeY / 2, -sizeZ / 2]},
-                {position: [-sizeX / 2, sizeY / 2, -sizeZ / 2]},
-                {position: [sizeX / 2, sizeY / 2, -sizeZ / 2]},
-                {position: [-sizeX / 2, -sizeY / 2, sizeZ / 2]},
-                {position: [sizeX / 2, -sizeY / 2, sizeZ / 2]},
-                {position: [-sizeX / 2, sizeY / 2, sizeZ / 2]},
-                {position: [sizeX / 2, sizeY / 2, sizeZ / 2]},
+                { position: [-sizeX / 2, -sizeY / 2, -sizeZ / 2] },
+                { position: [sizeX / 2, -sizeY / 2, -sizeZ / 2] },
+                { position: [-sizeX / 2, sizeY / 2, -sizeZ / 2] },
+                { position: [sizeX / 2, sizeY / 2, -sizeZ / 2] },
+                { position: [-sizeX / 2, -sizeY / 2, sizeZ / 2] },
+                { position: [sizeX / 2, -sizeY / 2, sizeZ / 2] },
+                { position: [-sizeX / 2, sizeY / 2, sizeZ / 2] },
+                { position: [sizeX / 2, sizeY / 2, sizeZ / 2] },
             ],
             triangles: [
                 [0, 1, 2], [1, 3, 2], // front
@@ -28,11 +27,28 @@ export class MeshBuilder {
                 rotation: quat.create()
             }
         };
-        
-        mesh.vertices.forEach(vert => {
-            vert.data = {colour: colour}
-        });
+
+        this.flatColourVertices(mesh.vertices, colour);
 
         return mesh;
+    }
+    /**
+     * expecting a vertex order like this:
+     * 
+     * 2---3
+     * | \ |
+     * 0---1
+     */
+    public static triangulateQuad(vertexIndices: number[]): Triangle[] {
+        return [
+            [vertexIndices[0], vertexIndices[1], vertexIndices[2]],
+            [vertexIndices[1], vertexIndices[3], vertexIndices[2]],
+        ];
+    }
+
+    public static flatColourVertices(vertices: Vertex[], colour: vec4) {
+        vertices.forEach(vert => {
+            vert.data = { colour: colour }
+        });
     }
 }
