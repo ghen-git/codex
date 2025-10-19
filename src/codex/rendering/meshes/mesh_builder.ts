@@ -57,7 +57,7 @@ export class MeshBuilder {
                 vert.data = {};
 
             if (this.overrideColourWithRandomColours)
-                colour = [rand(0, 1), 0, rand(0, 1), rand(0, 0.01)];
+                colour = [rand(0, 1), rand(0, 1), rand(0, 1), 1];
             vert.data.colour = colour;
         });
     }

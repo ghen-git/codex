@@ -14,12 +14,12 @@ import { PolylineGPUGroup } from "./codex/rendering/polyline_gpu_group";
 
 document.addEventListener('DOMContentLoaded', () => {
     CodexRenderer.start(window);
-    MeshBuilder.overrideColourWithRandomColours = true;
+    // MeshBuilder.overrideColourWithRandomColours = true;
 
     const teapot = MeshBuilder.parseObj(teapotObj);
     MeshBuilder.flatColourVertices(teapot.vertices, [1, 0, 0, 1]);
 
-    const wireframe = buildWireframe(teapot, [1, 1, 1, 0.003], 0.001);
+    const wireframe = buildWireframe(teapot, [1, 1, 1, 1], 0.001);
     CodexRenderer.lines3DProgram.renderMesh(wireframe.mesh);
     console.log(wireframe.mesh);
     // CodexRenderer.meshes3DProgram.renderMesh(teapot);

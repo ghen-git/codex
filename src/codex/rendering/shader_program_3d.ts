@@ -16,9 +16,13 @@ export class ShaderProgram3D {
         };
 
         settings.setBlendingOptions = (gl) => {
-            gl.disable(gl.DEPTH_TEST);
-            gl.enable(gl.BLEND);
-            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+            gl.depthFunc(gl.LEQUAL); // sets the comparison to see if an object's z is closer than another to <=
+            gl.enable(gl.DEPTH_TEST); // activates depth testing (closer triangles get rendered on top of further ones)
+
+            // use for alpha blending instead of depth testing
+            // gl.disable(gl.DEPTH_TEST);
+            // gl.enable(gl.BLEND);
+            // gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         }
 
         settings.onWindowResized = this.updateProjectionMatrix;
