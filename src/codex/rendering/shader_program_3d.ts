@@ -11,15 +11,17 @@ export class ShaderProgram3D {
         this.customBuffers = settings.customBuffers;
 
         settings.customBuffers = {
-            init: this.initBuffers,
+            init: (program, gl) => this.initBuffers(program, gl, this),
             write: (program, gl) => this.writeBuffers(program, gl, this)
         };
 
         settings.setBlendingOptions = (gl) => {
-            // 2d with alpha "blending"
-            gl.depthFunc(gl.LEQUAL); // sets the comparison to see if an object's z is closer than another to <=
-            gl.enable(gl.DEPTH_TEST); // activates depth testing (closer triangles get rendered on top of further ones)
+            gl.disable(gl.DEPTH_TEST);
+            gl.enable(gl.BLEND);
+            gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
         }
+
+        settings.onWindowResized = this.updateProjectionMatrix;
 
         this.shaderProgram = new ShaderProgram(window, settings)
     }
@@ -38,7 +40,7 @@ export class ShaderProgram3D {
         gl.uniformMatrix4fv(program.renderingData.uniforms.projectionMat, false, program.renderingData.projection);
     }
 
-    initBuffers(program: ShaderProgram, gl: WebGL2RenderingContext) {
+    initBuffers(program: ShaderProgram, gl: WebGL2RenderingContext, program3d: ShaderProgram3D) {
         const innerProgram = program.renderingData.program;
 
         const colourBuffer = gl.createBuffer();
@@ -48,7 +50,6 @@ export class ShaderProgram3D {
         const modelViewMatrixIndexBuffer = gl.createBuffer();
         program.renderingData.attrs.modelViewMatrixIndex = gl.getAttribLocation(innerProgram, "aModelViewMatrixIndex");
         program.renderingData.vertexBuffers.modelViewMatrixIndex = modelViewMatrixIndexBuffer;
-        
 
         const modelViewMatricesTexture = gl.createTexture();
         gl.bindTexture(gl.TEXTURE_2D, modelViewMatricesTexture);
@@ -60,8 +61,8 @@ export class ShaderProgram3D {
         gl.activeTexture(gl.TEXTURE0);
         gl.uniform1i(program.renderingData!.uniforms.modelViewMatricesTexture, 0);
 
-        if (this.customBuffers !== undefined)
-            this.customBuffers.init(this.shaderProgram, this.shaderProgram.gl);
+        if (program3d.customBuffers !== undefined)
+            program3d.customBuffers.init(this.shaderProgram, this.shaderProgram.gl);
     }
 
     writeBuffers(program: ShaderProgram, gl: WebGL2RenderingContext, program3d: ShaderProgram3D) {

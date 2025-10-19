@@ -1,7 +1,7 @@
 import { quat, vec3, vec4 } from "gl-matrix";
-import { RenderableMesh, Vertex } from "./shader_program";
+import { RenderableMesh } from "./shader_program";
 import { CodexRenderer } from "./codex_renderer";
-import { axisAngleToRotationMatrix, EPSILON, rand, rotateVectorWithMatrix } from "../math";
+import { axisAngleToRotationMatrix, EPSILON, rotateVectorWithMatrix } from "../math";
 import { MeshBuilder } from "./meshes/mesh_builder";
 
 export class Polyline {
@@ -10,9 +10,11 @@ export class Polyline {
     circles?: RenderableMesh;
     thickness: number;
     points: vec3[];
+    render: boolean;
 
-    constructor(points: vec3[], colour: vec4, thickness: number) {
+    constructor(points: vec3[], colour: vec4, thickness: number, render: boolean = false) {
         this.colour = colour;
+        this.render = render;
 
         this.thickness = thickness;
         this.points = [];
@@ -26,7 +28,9 @@ export class Polyline {
             }
         };
 
-        CodexRenderer.meshes3DProgram.renderMesh(this.mesh);
+        if (this.render)
+            CodexRenderer.meshes3DProgram.renderMesh(this.mesh);
+
         this.changePoints(points);
     }
 
@@ -34,7 +38,8 @@ export class Polyline {
         if (this.points.length < 2) {
             this.mesh.triangles = [];
             this.mesh.vertices = [];
-            CodexRenderer.meshes3DProgram.shouldUpdateBuffers = true;
+            if (this.render)
+                CodexRenderer.meshes3DProgram.shouldUpdateBuffers = true;
             return;
         }
 
@@ -103,8 +108,8 @@ export class Polyline {
             previousBottomNormal = bottomNormal;
         }
 
-        console.log(this.mesh);
-        CodexRenderer.meshes3DProgram.shouldUpdateBuffers = true;
+        if (this.render)
+            CodexRenderer.meshes3DProgram.shouldUpdateBuffers = true;
     }
 
     buildVerticesFromPoints() {
@@ -193,10 +198,6 @@ export class Polyline {
         return tangents;
     }
 
-    vecToVertex(v: vec3): Vertex {
-        return { position: vec3.fromValues(v[0], v[1], v[2]), data: { colour: [rand(0, 1), rand(0, 1), rand(0, 1), 1] } };
-    }
-
     changePoints(points: vec3[]) {
         const keepVertices = points.length == this.points.length;
 
@@ -204,21 +205,8 @@ export class Polyline {
         this.resize(keepVertices);
     }
 
-    lengthSq() {
-        let length = 0;
-        let prev = this.points[0];
-
-        for (let i = 1; i < this.points.length; i++) {
-            let xSq = this.points[i][0] - prev[0];
-            let ySq = this.points[i][1] - prev[1];
-            length += xSq * xSq + ySq * ySq;
-            prev = this.points[i];
-        }
-
-        return length;
-    }
-
     remove() {
-        CodexRenderer.meshes3DProgram.removeMesh(this.mesh);
+        if (this.render)
+            CodexRenderer.meshes3DProgram.removeMesh(this.mesh);
     }
 }

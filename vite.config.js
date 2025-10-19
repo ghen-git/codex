@@ -1,5 +1,5 @@
 /** @type {import('vite').UserConfig} */
 
 export default {
-    assetsInclude: ['**/*.ttf']
+    assetsInclude: ['**/*.ttf', '**/*.obj']
 }

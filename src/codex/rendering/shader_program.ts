@@ -32,7 +32,7 @@ export interface RenderingData {
 export interface ShaderProgramSettings {
     vertexShaderSource: string,
     fragmentShaderSource: string,
-    frame?: (program: ShaderProgram) => void,
+    frame?: (program: ShaderProgram, deltaTime: number) => void,
     setBlendingOptions?: (gl: WebGL2RenderingContext) => void,
     projectionMatrix?: mat4,
     customBuffers?: AdditionalBuffers,
@@ -60,12 +60,15 @@ export class ShaderProgram {
     settings: ShaderProgramSettings;
     shouldUpdateBuffers: boolean = false;
 
+    private lastFrameTime: number;
+
     constructor(window: Window, settings: ShaderProgramSettings) {
         this.window = window;
         this.meshes = new LinkedList();
         this.settings = settings;
         // @ts-expect-error
         this.gl = undefined;
+        this.lastFrameTime = Date.now();
     }
 
     /**
@@ -73,6 +76,7 @@ export class ShaderProgram {
      */
     setup(gl: WebGL2RenderingContext) {
         this.gl = gl;
+
         const program = this.createShaderProgram();
 
         const positionBuffer = this.gl.createBuffer();
@@ -93,7 +97,8 @@ export class ShaderProgram {
                 position: this.gl.getAttribLocation(program, "aPosition")
             },
             uniforms: {
-                projectionMat: this.gl.getUniformLocation(program, "uProjectionMatrix")
+                projectionMat: this.gl.getUniformLocation(program, "uProjectionMatrix"),
+                viewportRatio: this.gl.getUniformLocation(program, "uViewportRatio"),
             },
             textures: {},
             vertexBuffers: {
@@ -113,6 +118,7 @@ export class ShaderProgram {
         this.writeBuffers();
 
         this.gl.uniformMatrix4fv(this.renderingData.uniforms.projectionMat, false, this.renderingData.projection);
+        this.gl.uniform1f(this.renderingData.uniforms.viewportRatio, this.window.innerWidth / this.window.innerHeight);
     }
 
     renderMesh(mesh: RenderableMesh) {
@@ -164,8 +170,13 @@ export class ShaderProgram {
         if (this.settings.setBlendingOptions)
             this.settings.setBlendingOptions(this.gl);
 
+        const frameTime = Date.now();
+        const deltaTime = frameTime - this.lastFrameTime;
+
         if (this.settings.frame)
-            this.settings.frame(this);
+            this.settings.frame(this, deltaTime);
+
+        this.lastFrameTime = frameTime;
 
         if (this.shouldUpdateBuffers) {
             this.writeBuffers();
@@ -256,7 +267,10 @@ export class ShaderProgram {
     }
 
     public updateWindowSize(newWidth: number, newHeight: number) {
-        if(this.settings.onWindowResized)
+        this.gl.bindVertexArray(this.renderingData.vao);
+        this.gl.uniform1f(this.renderingData.uniforms.viewportRatio, newWidth / newHeight);
+
+        if (this.settings.onWindowResized)
             this.settings.onWindowResized(this, this.gl, newWidth, newHeight);
     }
 }
