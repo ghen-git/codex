@@ -3,12 +3,10 @@ precision highp float;
 
 in vec4 aPosition;
 in vec4 aColour;
-in vec3 aNormal;
 in float aModelViewMatrixIndex;
 
 uniform mat4 uProjectionMatrix;
 uniform sampler2D uModelViewMatricesTexture;
-uniform vec3 uLightDirection;
 
 out highp vec4 vColour;
 
@@ -22,14 +20,8 @@ void main() {
         getValueByIndexFromTexture(uModelViewMatricesTexture, int(aModelViewMatrixIndex) * 4 + 3)
     );
 
-    vec4 worldSpaceNormal4 = vec4(aNormal.x, aNormal.y, aNormal.z, 1);
-    vec3 worldSpaceNormal = vec3(worldSpaceNormal4.x, worldSpaceNormal4.y, worldSpaceNormal4.z);
-
-    float diffuseStrength = clamp(dot(worldSpaceNormal, uLightDirection), 0.1, 1.0);
-
     gl_Position = uProjectionMatrix * modelViewMatrix * aPosition;
-    float depthFog = clamp(1.0 / (gl_Position.w) * 20.0, 0.0, 1.0);
-    vColour = vec4(aColour.xyz * diffuseStrength, 1);
+    vColour = aColour;
 }
 
 vec4 getValueByIndexFromTexture(sampler2D tex, int index) {

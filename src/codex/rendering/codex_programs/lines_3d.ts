@@ -14,7 +14,7 @@ export class Lines3DProgram {
                 init: this.initBuffers,
                 write: this.writeBuffers
             }
-        });
+        }, 11);
 
         Lines3DProgram.program3d = shaderProgram3d;
 
@@ -42,39 +42,41 @@ export class Lines3DProgram {
     }
 
     static writeBuffers(program: ShaderProgram, gl: WebGL2RenderingContext) {
-        const previousPoints: number[] = [], nextPoints: number[] = [], normalDirs: number[] = [];
-
-        program.meshes.forEach((mesh, meshIndex) => mesh.vertices.forEach(vertex => {
-            previousPoints.push(...vertex.data!.previousPoint);
-            nextPoints.push(...vertex.data!.nextPoint);
-            normalDirs.push(vertex.data!.normalDir);
-        }));
-
-        // previousPoint
-        const previousPointAttr = program.renderingData.attrs.previousPoint;
-        const previousPointBuffer = program.renderingData.vertexBuffers.previousPoint;
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, previousPointBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(previousPoints), gl.STATIC_DRAW);
-        gl.vertexAttribPointer(previousPointAttr, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(previousPointAttr);
-
-        // nextPoint
-        const nextPointAttr = program.renderingData.attrs.nextPoint;
-        const nextPointBuffer = program.renderingData.vertexBuffers.nextPoint;
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, nextPointBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(nextPoints), gl.STATIC_DRAW);
-        gl.vertexAttribPointer(nextPointAttr, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(nextPointAttr);
-        
-        // normalDir
-        const normalDirAttr = program.renderingData.attrs.normalDir;
-        const normalDirBuffer = program.renderingData.vertexBuffers.normalDir;
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, normalDirBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normalDirs), gl.STATIC_DRAW);
-        gl.vertexAttribPointer(normalDirAttr, 1, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(normalDirAttr);
+        if(program.updateVertexBuffers) {
+            const previousPoints: number[] = [], nextPoints: number[] = [], normalDirs: number[] = [];
+    
+            program.meshes.forEach((mesh) => mesh.vertices.forEach(vertex => {
+                previousPoints.push(...vertex.data!.previousPoint);
+                nextPoints.push(...vertex.data!.nextPoint);
+                normalDirs.push(vertex.data!.normalDir);
+            }));
+    
+            // previousPoint
+            const previousPointAttr = program.renderingData.attrs.previousPoint;
+            const previousPointBuffer = program.renderingData.vertexBuffers.previousPoint;
+    
+            gl.bindBuffer(gl.ARRAY_BUFFER, previousPointBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(previousPoints), gl.STATIC_DRAW);
+            gl.vertexAttribPointer(previousPointAttr, 3, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(previousPointAttr);
+    
+            // nextPoint
+            const nextPointAttr = program.renderingData.attrs.nextPoint;
+            const nextPointBuffer = program.renderingData.vertexBuffers.nextPoint;
+    
+            gl.bindBuffer(gl.ARRAY_BUFFER, nextPointBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(nextPoints), gl.STATIC_DRAW);
+            gl.vertexAttribPointer(nextPointAttr, 3, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(nextPointAttr);
+            
+            // normalDir
+            const normalDirAttr = program.renderingData.attrs.normalDir;
+            const normalDirBuffer = program.renderingData.vertexBuffers.normalDir;
+    
+            gl.bindBuffer(gl.ARRAY_BUFFER, normalDirBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normalDirs), gl.STATIC_DRAW);
+            gl.vertexAttribPointer(normalDirAttr, 1, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(normalDirAttr);
+        }
     }
 }

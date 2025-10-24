@@ -9,7 +9,7 @@ export class Meshes3DProgram {
         const shaderProgram3d = new ShaderProgram3D(window, {
             vertexShaderSource: vertexShader,
             fragmentShaderSource: fragmentShader
-        });
+        }, 10);
 
         Meshes3DProgram.program3d = shaderProgram3d;
 

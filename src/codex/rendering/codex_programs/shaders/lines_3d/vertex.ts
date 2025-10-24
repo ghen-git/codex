@@ -48,7 +48,7 @@ void main() {
 
     float proportion = abs(dot(lineNormal, prevNormal));
 
-    float lineDistance = 0.002;
+    float lineDistance = 0.01;
 
     lineNormal = lineNormal * lineDistance * aNormalDir;
 

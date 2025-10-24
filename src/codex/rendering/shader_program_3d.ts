@@ -1,14 +1,23 @@
 import { mat4, vec3 } from "gl-matrix";
-import { AdditionalBuffers, ShaderProgram, ShaderProgramSettings } from "./shader_program"
+import { AdditionalBuffers, ShaderProgram, ShaderProgramFrame, ShaderProgramSettings } from "./shader_program"
 import { createProjectionMatrix, quaternionToRotationMatrix } from "../math";
 
 export class ShaderProgram3D {
     public shaderProgram: ShaderProgram;
-    public cameraPosition: vec3 = [0, 0, 0];
+    public cameraPosition: vec3;
+    private lightDirection: vec3;
+    private customFrame?: ShaderProgramFrame;
     customBuffers: AdditionalBuffers | undefined;
+    private textureIndex: number;
 
-    constructor(window: Window, settings: ShaderProgramSettings) {
+    constructor(window: Window, settings: ShaderProgramSettings, textureIndex: number) {
         this.customBuffers = settings.customBuffers;
+        this.cameraPosition = [0, 0, 0];
+        this.lightDirection = [0, 0, 0];
+        this.textureIndex = textureIndex;
+
+        this.customFrame = settings.frame;
+        settings.frame = this.frame;
 
         settings.customBuffers = {
             init: (program, gl) => this.initBuffers(program, gl, this),
@@ -28,6 +37,13 @@ export class ShaderProgram3D {
         settings.onWindowResized = this.updateProjectionMatrix;
 
         this.shaderProgram = new ShaderProgram(window, settings)
+    }
+
+    frame(program: ShaderProgram, dt: number) {
+        program.gl.bindTexture(program.gl.TEXTURE_2D, program.renderingData.textures.modelViewMatrices);
+
+        if(this.customFrame)
+            this.customFrame(program, dt);
     }
 
     public moveCameraBy(offset: vec3) {
@@ -51,73 +67,105 @@ export class ShaderProgram3D {
         program.renderingData.attrs.colour = gl.getAttribLocation(innerProgram, "aColour");
         program.renderingData.vertexBuffers.colour = colourBuffer;
 
+        const normalBuffer = gl.createBuffer();
+        program.renderingData.attrs.normal = gl.getAttribLocation(innerProgram, "aNormal");
+        program.renderingData.vertexBuffers.normal = normalBuffer;
+
         const modelViewMatrixIndexBuffer = gl.createBuffer();
         program.renderingData.attrs.modelViewMatrixIndex = gl.getAttribLocation(innerProgram, "aModelViewMatrixIndex");
         program.renderingData.vertexBuffers.modelViewMatrixIndex = modelViewMatrixIndexBuffer;
 
         const modelViewMatricesTexture = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE0 + this.textureIndex);
         gl.bindTexture(gl.TEXTURE_2D, modelViewMatricesTexture);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
         program.renderingData.uniforms.modelViewMatricesTexture = gl.getUniformLocation(program.renderingData.program, "uModelViewMatricesTexture");
+        program.renderingData.uniforms.lightDirection = gl.getUniformLocation(program.renderingData.program, "uLightDirection");
+
         program.renderingData.textures.modelViewMatrices = modelViewMatricesTexture;
 
-        gl.activeTexture(gl.TEXTURE0);
-        gl.uniform1i(program.renderingData!.uniforms.modelViewMatricesTexture, 0);
+
+        this.lightDirection = vec3.fromValues(-0.5, 1, -0.5);
+        vec3.normalize(this.lightDirection, this.lightDirection);
+
+        gl.uniform1i(program.renderingData!.uniforms.modelViewMatricesTexture, this.textureIndex);
+        gl.uniform3f(program.renderingData!.uniforms.lightDirection, this.lightDirection[0], this.lightDirection[1], this.lightDirection[2]);
 
         if (program3d.customBuffers !== undefined)
             program3d.customBuffers.init(this.shaderProgram, this.shaderProgram.gl);
     }
 
     writeBuffers(program: ShaderProgram, gl: WebGL2RenderingContext, program3d: ShaderProgram3D) {
-        const colours: number[] = [], modelViewMatrixIndices: number[] = [];
+        // vertex buffers
+        if (program.updateVertexBuffers) {
+            const colours: number[] = [], modelViewMatrixIndices: number[] = [], normals: number[] = [];
 
-        program.meshes.forEach((mesh, meshIndex) => mesh.vertices.forEach(vertex => {
-            colours.push(...vertex.data!.colour);
-            modelViewMatrixIndices.push(meshIndex);
-        }));
+            program.meshes.forEach((mesh, meshIndex) => mesh.vertices.forEach(vertex => {
+                if (vertex.data!.normal !== undefined) {
+                    normals.push(...vertex.data!.normal);
+                }
+                else {
+                    normals.push(...vec3.clone(program3d.lightDirection));
+                }
 
-        const colourAttr = program.renderingData.attrs.colour;
-        const colourBuffer = program.renderingData.vertexBuffers.colour;
+                colours.push(...vertex.data!.colour);
+                modelViewMatrixIndices.push(meshIndex);
+            }));
+            const colourAttr = program.renderingData.attrs.colour;
+            const colourBuffer = program.renderingData.vertexBuffers.colour;
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, colourBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colours), gl.STATIC_DRAW);
-        gl.vertexAttribPointer(colourAttr, 4, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(colourAttr);
+            gl.bindBuffer(gl.ARRAY_BUFFER, colourBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colours), gl.STATIC_DRAW);
+            gl.vertexAttribPointer(colourAttr, 4, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(colourAttr);
 
-        const modelViewMatrixIndexAttr = program.renderingData.attrs.modelViewMatrixIndex;
-        const modelViewMatrixIndexBuffer = program.renderingData.vertexBuffers.modelViewMatrixIndex;
+            const normalAttr = program.renderingData.attrs.normal;
+            const normalBuffer = program.renderingData.vertexBuffers.normal;
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, modelViewMatrixIndexBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(modelViewMatrixIndices), gl.STATIC_DRAW);
-        gl.vertexAttribPointer(modelViewMatrixIndexAttr, 1, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(modelViewMatrixIndexAttr);
-        const matricesBuffer: number[] = [];
+            gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
+            gl.vertexAttribPointer(normalAttr, 3, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(normalAttr);
 
-        program.meshes.forEach(mesh => {
-            const modelViewMat = mat4.create();
+            const modelViewMatrixIndexAttr = program.renderingData.attrs.modelViewMatrixIndex;
+            const modelViewMatrixIndexBuffer = program.renderingData.vertexBuffers.modelViewMatrixIndex;
 
-            const translationMat = mat4.fromValues(
-                1, 0, 0, 0,
-                0, 1, 0, 0,
-                0, 0, 1, 0,
-                mesh.data!.position[0] - program3d.cameraPosition[0], mesh.data!.position[1] - program3d.cameraPosition[1], mesh.data!.position[2] - program3d.cameraPosition[2], 1,
-            );
+            gl.bindBuffer(gl.ARRAY_BUFFER, modelViewMatrixIndexBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(modelViewMatrixIndices), gl.STATIC_DRAW);
+            gl.vertexAttribPointer(modelViewMatrixIndexAttr, 1, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(modelViewMatrixIndexAttr);
+        }
 
-            const rotationMat = quaternionToRotationMatrix(mesh.data!.rotation);
+        // model buffers
+        if (program.updateModelBuffers) {
+            const matricesBuffer: number[] = [];
+            program.meshes.forEach(mesh => {
+                const modelViewMat = mat4.create();
 
-            mat4.mul(modelViewMat, modelViewMat, translationMat);
-            mat4.mul(modelViewMat, modelViewMat, rotationMat);
+                const translationMat = mat4.fromValues(
+                    1, 0, 0, 0,
+                    0, 1, 0, 0,
+                    0, 0, 1, 0,
+                    mesh.data!.position[0] - program3d.cameraPosition[0], mesh.data!.position[1] - program3d.cameraPosition[1], mesh.data!.position[2] - program3d.cameraPosition[2], 1,
+                );
 
-            matricesBuffer.push(...modelViewMat);
-        });
+                const rotationMat = quaternionToRotationMatrix(mesh.data!.rotation);
 
-        gl.bindTexture(gl.TEXTURE_2D, program.renderingData.textures.modelViewMatrices);
-        const width = 4;
-        const height = matricesBuffer.length / (width * 4);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, width, height, 0, gl.RGBA, gl.FLOAT, new Float32Array(matricesBuffer));
+                mat4.mul(modelViewMat, modelViewMat, translationMat);
+                mat4.mul(modelViewMat, modelViewMat, rotationMat);
 
-        if (this.customBuffers !== undefined)
-            this.customBuffers.write(this.shaderProgram, this.shaderProgram.gl);
+                matricesBuffer.push(...modelViewMat);
+            });
+
+            gl.bindTexture(gl.TEXTURE_2D, program.renderingData.textures.modelViewMatrices);
+            const width = 4;
+            const height = matricesBuffer.length / (width * 4);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, width, height, 0, gl.RGBA, gl.FLOAT, new Float32Array(matricesBuffer));
+
+            if (this.customBuffers !== undefined)
+                this.customBuffers.write(this.shaderProgram, this.shaderProgram.gl);
+        }
     }
 }

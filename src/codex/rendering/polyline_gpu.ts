@@ -36,8 +36,9 @@ export class PolylineGPU {
         if (this.points.length < 2) {
             this.mesh.triangles = [];
             this.mesh.vertices = [];
-            if (this.render)
-                CodexRenderer.lines3DProgram.shouldUpdateBuffers = true;
+            if (this.render) {
+                CodexRenderer.lines3DProgram.updateVertexBuffers = true;
+            }
             return;
         }
 
@@ -70,8 +71,9 @@ export class PolylineGPU {
         this.mesh.vertices[offset].data!.nextPoint = this.points[this.points.length - 1];
         this.mesh.vertices[offset + 1].data!.nextPoint = this.points[this.points.length - 1];
 
-        if (this.render)
-            CodexRenderer.lines3DProgram.shouldUpdateBuffers = true;
+        if (this.render) {
+            CodexRenderer.lines3DProgram.updateVertexBuffers = true;
+        }
     }
 
     buildVerticesFromPoints() {

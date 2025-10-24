@@ -39,7 +39,7 @@ export class Polyline {
             this.mesh.triangles = [];
             this.mesh.vertices = [];
             if (this.render)
-                CodexRenderer.meshes3DProgram.shouldUpdateBuffers = true;
+                CodexRenderer.meshes3DProgram.updateVertexBuffers = true;
             return;
         }
 
@@ -87,10 +87,10 @@ export class Polyline {
                 ((previousBottomNormal[2] + bottomNormal[2]) / 2)
             ]);
 
-            const rightDistance = halfThickness / Math.abs(vec3.dot(avgRightNormal, previousRightNormal));
-            const topDistance = halfThickness / Math.abs(vec3.dot(avgTopNormal, previousTopNormal));
-            const leftDistance = halfThickness / Math.abs(vec3.dot(avgLeftNormal, previousLeftNormal));
-            const bottomDistance = halfThickness / Math.abs(vec3.dot(avgBottomNormal, previousBottomNormal));
+            const rightDistance = halfThickness;
+            const topDistance = halfThickness;
+            const leftDistance = halfThickness;
+            const bottomDistance = halfThickness;
 
             const scaledRightNormal = vec3.scale(vec3.create(), avgRightNormal, rightDistance);
             const scaledTopNormal = vec3.scale(vec3.create(), avgTopNormal, topDistance);
@@ -109,7 +109,7 @@ export class Polyline {
         }
 
         if (this.render)
-            CodexRenderer.meshes3DProgram.shouldUpdateBuffers = true;
+            CodexRenderer.meshes3DProgram.updateVertexBuffers = true;
     }
 
     buildVerticesFromPoints() {
