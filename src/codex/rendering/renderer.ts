@@ -10,6 +10,7 @@ export class Renderer {
     public colourRenderBuffer: WebGLRenderbuffer;
     public depthRenderBuffer: WebGLRenderbuffer;
     public frameBufferTexture: WebGLTexture;
+    private antialiasingSamples: number = 4;
 
     constructor(gl: WebGL2RenderingContext, canvas: HTMLCanvasElement, window: Window, shaderPrograms: ShaderProgram[]) {
         this.gl = gl;
@@ -24,29 +25,29 @@ export class Renderer {
         this.frameBufferTexture = gl.createTexture()!;
 
         // multisample frame buffer setup for antialiasing
-        gl.bindFramebuffer(gl.FRAMEBUFFER, this.multisampleFrameBuffer);
+        this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.multisampleFrameBuffer);
 
-        gl.bindRenderbuffer(gl.RENDERBUFFER, this.depthRenderBuffer);
-        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, gl.getParameter(gl.MAX_SAMPLES), gl.DEPTH_COMPONENT16, window.innerWidth, window.innerHeight);
-        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, this.depthRenderBuffer);
+        this.gl.bindRenderbuffer(this.gl.RENDERBUFFER, this.depthRenderBuffer);
+        this.gl.renderbufferStorageMultisample(this.gl.RENDERBUFFER, this.antialiasingSamples, this.gl.DEPTH_COMPONENT16, window.innerWidth, window.innerHeight);
+        this.gl.framebufferRenderbuffer(this.gl.FRAMEBUFFER, this.gl.DEPTH_ATTACHMENT, this.gl.RENDERBUFFER, this.depthRenderBuffer);
         
-        gl.bindRenderbuffer(gl.RENDERBUFFER, this.colourRenderBuffer);
-        gl.renderbufferStorageMultisample(gl.RENDERBUFFER, gl.getParameter(gl.MAX_SAMPLES), gl.RGBA8, window.innerWidth, window.innerHeight);
-        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, this.colourRenderBuffer);
+        this.gl.bindRenderbuffer(this.gl.RENDERBUFFER, this.colourRenderBuffer);
+        this.gl.renderbufferStorageMultisample(this.gl.RENDERBUFFER, this.antialiasingSamples, this.gl.RGBA8, window.innerWidth, window.innerHeight);
+        this.gl.framebufferRenderbuffer(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, this.gl.RENDERBUFFER, this.colourRenderBuffer);
 
         // frame buffer texture setup
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, this.frameBufferTexture);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, this.antialiasedFrameBuffer);
+        this.gl.activeTexture(this.gl.TEXTURE0);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, this.frameBufferTexture);
+        this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.antialiasedFrameBuffer);
 
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MIN_FILTER, this.gl.NEAREST);
+        this.gl.texParameteri(this.gl.TEXTURE_2D, this.gl.TEXTURE_MAG_FILTER, this.gl.NEAREST);
 
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.window.innerWidth, this.window.innerHeight, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+        this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.window.innerWidth, this.window.innerHeight, 0, this.gl.RGBA, this.gl.UNSIGNED_BYTE, null);
         
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.frameBufferTexture, 0);
+        this.gl.framebufferTexture2D(this.gl.FRAMEBUFFER, this.gl.COLOR_ATTACHMENT0, this.gl.TEXTURE_2D, this.frameBufferTexture, 0);
 
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
     }
 
     public static create(window: Window, programs: ShaderProgram[]) {

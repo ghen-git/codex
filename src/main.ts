@@ -14,7 +14,7 @@ const rotatingMeshes: RenderableMesh[] = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     CodexRenderer.start(window);
-    // MeshBuilder.overrideColourWithRandomColours = true;
+    MeshBuilder.overrideColourWithRandomColours = true;
 
     const teapot = MeshBuilder.parseObj(teapotObj);
     MeshBuilder.flatColourVertices(teapot.vertices, [1, 0, 0, 1]);
@@ -22,26 +22,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     MeshBuilder.computeNormalsFromTriangles(teapot);
 
-    const gridWidth = 10;
+    const gridWidth = 15;
     const gridCount = 10;
 
     for (let i = 0; i < gridCount; i++) {
         for (let j = 0; j < gridCount; j++) {
             const teapotClone = MeshBuilder.cloneMesh(teapot);
-            // const wireframeClone = buildWireframe(teapot, [1, 1, 1, 1], 0.01);
+            const wireframeClone = MeshBuilder.cloneMesh(wireframe.mesh);
 
             teapotClone.data!.position[0] += (j * gridWidth) - (gridWidth * (gridCount / 2)) + gridWidth / 2;
             teapotClone.data!.position[2] += (i * gridWidth) - (gridWidth * (gridCount / 2)) + gridWidth / 2;
             teapotClone.data!.position[1] -= 5;
 
-            CodexRenderer.meshes3DProgram.renderMesh(teapotClone);
-            // CodexRenderer.meshes3DProgram.renderMesh(wireframeClone.mesh);
-            // wireframeClone.mesh.data!.position[0] += (j * gridWidth) - (gridWidth * (gridCount/2)) + gridWidth / 2;
-            // wireframeClone.mesh.data!.position[2] += (i * gridWidth) - (gridWidth * (gridCount/2)) + gridWidth / 2;
-            // wireframeClone.mesh.data!.position[1] -= 5;
+            // CodexRenderer.meshes3DProgram.renderMesh(teapotClone);
+            CodexRenderer.meshes3DProgram.renderMesh(wireframeClone);
+            wireframeClone.data!.position[0] += (j * gridWidth) - (gridWidth * (gridCount/2)) + gridWidth / 2;
+            wireframeClone.data!.position[2] += (i * gridWidth) - (gridWidth * (gridCount/2)) + gridWidth / 2;
+            wireframeClone.data!.position[1] -= 5;
 
             rotatingMeshes.push(teapotClone);
-            // rotatingMeshes.push(wireframeClone.mesh);
+            rotatingMeshes.push(wireframeClone);
         }
     }
 
@@ -70,8 +70,8 @@ document.addEventListener('DOMContentLoaded', () => {
     rotatingMeshes.push(nativeLineTest);
 
     CodexRenderer.nativeLinesProgram.renderMesh(nativeLineTest);
-    NativeLinesProgram.program3d.moveCameraBy([0, 0, 5]);
-    Meshes3DProgram.program3d.moveCameraBy([0, 0, 5])
+    NativeLinesProgram.program3d.moveCameraBy([0, 0, 15]);
+    Meshes3DProgram.program3d.moveCameraBy([0, 0, 15])
 })
 
 let progress = 0;

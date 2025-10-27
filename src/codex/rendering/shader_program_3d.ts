@@ -160,7 +160,8 @@ export class ShaderProgram3D {
             });
 
             gl.bindTexture(gl.TEXTURE_2D, program.renderingData.textures.modelViewMatrices);
-            const width = 4;
+
+            const width = 4 * Math.ceil(matricesBuffer.length / 4096);
             const height = matricesBuffer.length / (width * 4);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, width, height, 0, gl.RGBA, gl.FLOAT, new Float32Array(matricesBuffer));
 

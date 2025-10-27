@@ -10,6 +10,7 @@ out vec4 fragColor;
 
 void main() {
     vec4 colour = texture(uFrameBufferTexture, vUv);
+
     fragColor = colour;
 }
 `;
