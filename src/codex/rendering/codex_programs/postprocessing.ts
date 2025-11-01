@@ -46,36 +46,18 @@ export class PostProcessingProgram {
         gl.enableVertexAttribArray(program.renderingData.attrs.uv);
         
         program.renderingData.uniforms.frameBufferTexture = gl.getUniformLocation(program.renderingData.program, "uFrameBufferTexture");
-        gl.uniform1i(program.renderingData!.uniforms.frameBufferTexture, 0);
+        program.renderingData.uniforms.emissiveTexture = gl.getUniformLocation(program.renderingData.program, "uEmissiveTexture");
+        gl.uniform1i(program.renderingData!.uniforms.frameBufferTexture, 1);
     }
 
     static writeBuffers(program: ShaderProgram, gl: WebGL2RenderingContext) {
 
     }
 
-    static drawCall(program: ShaderProgram, gl: WebGL2RenderingContext) {
-        gl.bindFramebuffer(gl.READ_FRAMEBUFFER, program.renderer.multisampleFrameBuffer);
-        gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, program.renderer.antialiasedFrameBuffer);
-
-        gl.clearBufferfv(gl.COLOR, 0, [1.0, 1.0, 1.0, 1.0]);
-
-        gl.blitFramebuffer(0, 0, program.window.innerWidth, program.window.innerHeight,
-            0, 0, program.window.innerWidth, program.window.innerHeight,
-            gl.COLOR_BUFFER_BIT, gl.LINEAR);
-
-        // render the top layer to the framebuffer as well
-        gl.bindFramebuffer(gl.FRAMEBUFFER, program.renderer.multisampleFrameBuffer);
-
-        gl.bindFramebuffer(gl.READ_FRAMEBUFFER, program.renderer.multisampleFrameBuffer);
-        gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, null);
-
-        gl.clearBufferfv(gl.COLOR, 0, [1.0, 1.0, 1.0, 1.0]);
-        gl.blitFramebuffer(0, 0, program.window.innerWidth, program.window.innerHeight,
-            0, 0, program.window.innerWidth, program.window.innerHeight,
-            gl.COLOR_BUFFER_BIT, gl.LINEAR);
-
+    static drawCall(program: ShaderProgram, gl: WebGL2RenderingContext) {   
+        program.renderer.processAntialiasing(program.renderer.savedBuffers[1].frameBuffer);
         // render the cube with the texture we just rendered to
-        gl.bindTexture(gl.TEXTURE_2D, program.renderingData.textures.frameBuffer);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
         program.drawTriangles(6, 0);
     }

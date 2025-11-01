@@ -17,7 +17,7 @@ export class ShaderProgram3D {
         this.textureIndex = textureIndex;
 
         this.customFrame = settings.frame;
-        settings.frame = this.frame;
+        settings.frame = (program, dt) => this.frame(program, dt, this);
 
         settings.customBuffers = {
             init: (program, gl) => this.initBuffers(program, gl, this),
@@ -39,11 +39,11 @@ export class ShaderProgram3D {
         this.shaderProgram = new ShaderProgram(window, settings)
     }
 
-    frame(program: ShaderProgram, dt: number) {
+    frame(program: ShaderProgram, dt: number, program3d: ShaderProgram3D) {
         program.gl.bindTexture(program.gl.TEXTURE_2D, program.renderingData.textures.modelViewMatrices);
 
-        if(this.customFrame)
-            this.customFrame(program, dt);
+        if (program3d.customFrame)
+            program3d.customFrame(program, dt);
     }
 
     public moveCameraBy(offset: vec3) {
@@ -66,10 +66,6 @@ export class ShaderProgram3D {
         const colourBuffer = gl.createBuffer();
         program.renderingData.attrs.colour = gl.getAttribLocation(innerProgram, "aColour");
         program.renderingData.vertexBuffers.colour = colourBuffer;
-
-        const normalBuffer = gl.createBuffer();
-        program.renderingData.attrs.normal = gl.getAttribLocation(innerProgram, "aNormal");
-        program.renderingData.vertexBuffers.normal = normalBuffer;
 
         const modelViewMatrixIndexBuffer = gl.createBuffer();
         program.renderingData.attrs.modelViewMatrixIndex = gl.getAttribLocation(innerProgram, "aModelViewMatrixIndex");
@@ -100,16 +96,9 @@ export class ShaderProgram3D {
     writeBuffers(program: ShaderProgram, gl: WebGL2RenderingContext, program3d: ShaderProgram3D) {
         // vertex buffers
         if (program.updateVertexBuffers) {
-            const colours: number[] = [], modelViewMatrixIndices: number[] = [], normals: number[] = [];
+            const colours: number[] = [], modelViewMatrixIndices: number[] = [];
 
             program.meshes.forEach((mesh, meshIndex) => mesh.vertices.forEach(vertex => {
-                if (vertex.data!.normal !== undefined) {
-                    normals.push(...vertex.data!.normal);
-                }
-                else {
-                    normals.push(...vec3.clone(program3d.lightDirection));
-                }
-
                 colours.push(...vertex.data!.colour);
                 modelViewMatrixIndices.push(meshIndex);
             }));
@@ -120,14 +109,6 @@ export class ShaderProgram3D {
             gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colours), gl.STATIC_DRAW);
             gl.vertexAttribPointer(colourAttr, 4, gl.FLOAT, false, 0, 0);
             gl.enableVertexAttribArray(colourAttr);
-
-            const normalAttr = program.renderingData.attrs.normal;
-            const normalBuffer = program.renderingData.vertexBuffers.normal;
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
-            gl.vertexAttribPointer(normalAttr, 3, gl.FLOAT, false, 0, 0);
-            gl.enableVertexAttribArray(normalAttr);
 
             const modelViewMatrixIndexAttr = program.renderingData.attrs.modelViewMatrixIndex;
             const modelViewMatrixIndexBuffer = program.renderingData.vertexBuffers.modelViewMatrixIndex;

@@ -41,6 +41,7 @@ export interface ShaderProgramSettings {
     projectionMatrix?: mat4,
     customBuffers?: AdditionalBuffers,
     manualDrawCalls?: (program: ShaderProgram, gl: WebGL2RenderingContext) => void,
+    workOnBuffers?: (program: ShaderProgram, gl: WebGL2RenderingContext) => void,
     onWindowResized?: (program: ShaderProgram, gl: WebGL2RenderingContext, newWidth: number, newHeight: number) => void,
 }
 
@@ -68,6 +69,8 @@ export class ShaderProgram {
     updateVertexBuffers: boolean = false;
     forceFrame: boolean = false;
     drawToCanvas: boolean = false;
+    // @ts-expect-error
+    frameBuffer: WebGLFramebuffer;
 
     private lastFrameTime: number;
 
@@ -86,6 +89,7 @@ export class ShaderProgram {
     setup(gl: WebGL2RenderingContext, renderer: Renderer) {
         this.gl = gl;
         this.renderer = renderer;
+        this.frameBuffer = renderer.multisampleFrameBuffer;
 
         const program = this.createShaderProgram();
 
@@ -186,7 +190,7 @@ export class ShaderProgram {
         if (this.drawToCanvas)
             this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, null);
         else
-            this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.renderer.multisampleFrameBuffer);
+            this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.frameBuffer);
 
         const frameTime = Date.now();
         const deltaTime = frameTime - this.lastFrameTime;
@@ -218,6 +222,9 @@ export class ShaderProgram {
             // tells the GPU to draw all the meshes
             this.drawTriangles(this.renderingData.indicesCount, 0);
         }
+
+        if (this.settings.workOnBuffers !== undefined)
+            this.settings.workOnBuffers(this, this.gl);
     }
 
     /**
