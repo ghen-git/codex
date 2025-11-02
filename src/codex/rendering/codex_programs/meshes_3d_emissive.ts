@@ -9,11 +9,10 @@ export class Meshes3DEmissiveProgram {
         const shaderProgram3d = new ShaderProgram3D(window, {
             vertexShaderSource: vertexShader,
             fragmentShaderSource: fragmentShader,
-            frame: (program) => {
-                const gl = program.gl;
-                program.renderer.processAntialiasing(program.renderer.savedBuffers[0].frameBuffer);
+            workOnBuffers: (program, gl) => {
+                program.renderer.processAntialiasing(program.renderer.savedBuffers[1].frameBuffer);
                 gl.bindFramebuffer(gl.FRAMEBUFFER, program.renderer.multisampleFrameBuffer);
-                gl.clear(gl.COLOR_BUFFER_BIT) // clears buffers selected by a mask to a preset value
+                gl.clear(gl.COLOR_BUFFER_BIT);
             }
         }, 13);
 

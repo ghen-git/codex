@@ -15,8 +15,10 @@ export class Meshes3DProgram {
                 init: this.initBuffers,
                 write: this.writeBuffers
             },
-            frame: (program) => {
-                const gl = program.gl;
+            workOnBuffers: (program, gl) => {
+                program.renderer.processAntialiasing(program.renderer.savedBuffers[0].frameBuffer);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, program.renderer.multisampleFrameBuffer);
+                gl.clear(gl.COLOR_BUFFER_BIT);
             }
         }, 10);
 

@@ -5,23 +5,26 @@ in highp vec4 vColour;
 in highp vec2 vUv;
 
 uniform sampler2D uFrameBufferTexture;
+uniform sampler2D uEmissiveTexture;
 
 out vec4 fragColor;
 
+// Another curve-fitting approximation. I can't find where I got this, but I think it was on Math Exchange.
+vec3 superfastTanh(vec3 x)
+{
+    vec3 x2 = x * x;
+    return x * (27.0 + x2) / (27.0 + 9.0*x2);
+}
+
 void main() {
-    vec4 colour = texture(uFrameBufferTexture, vUv);
-    float brightness = max(colour.x, max(colour.y, colour.z));
+    vec4 frameBufferColour = texture(uFrameBufferTexture, vUv);
+    vec4 emissiveColour = texture(uEmissiveTexture, vUv);
+    // emissiveColour.rgb = superfastTanh(emissiveColour.rgb);
 
-    // if(colour.x > 0.0 && colour.x < 0.2)
-    //     colour.x = 0.1;
-    // if(colour.x > 0.1 && colour.x < 0.5)
-    //     colour.x = 0.3;
-    // if(colour.x > 0.3 && colour.x < 0.9)
-    //     colour.x = 0.5;
-    // if(colour.x > 0.5){
-    //     colour.y = 0.7;
-    //     colour.z = 0.7;}
-
-    fragColor = colour;
+    vec4 hdrColour = vec4(frameBufferColour.rgb * frameBufferColour.a + emissiveColour.rgb, frameBufferColour.a + emissiveColour.a);
+    
+    fragColor.rgb = superfastTanh(hdrColour.rgb);
+    // fragColor.rgb = hdrColour.rgb;
+    fragColor.a = hdrColour.a;
 }
 `;

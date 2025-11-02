@@ -1,6 +1,7 @@
 import { fragmentShader } from "./shaders/postprocessing/fragment";
 import { vertexShader } from "./shaders/postprocessing/vertex";
-import { RenderableMesh, ShaderProgram } from "../shader_program";
+import { ShaderProgram } from "../shader_program";
+import { DownsampleBlurProgram } from "./downsample_blur";
 
 export class PostProcessingProgram {
     static program: ShaderProgram;
@@ -12,7 +13,7 @@ export class PostProcessingProgram {
             manualDrawCalls: this.drawCall,
             customBuffers: {
                 init: this.initBuffers,
-                write: this.writeBuffers
+                write: () => {}
             }
         });
 
@@ -47,18 +48,11 @@ export class PostProcessingProgram {
         
         program.renderingData.uniforms.frameBufferTexture = gl.getUniformLocation(program.renderingData.program, "uFrameBufferTexture");
         program.renderingData.uniforms.emissiveTexture = gl.getUniformLocation(program.renderingData.program, "uEmissiveTexture");
-        gl.uniform1i(program.renderingData!.uniforms.frameBufferTexture, 1);
+        gl.uniform1i(program.renderingData!.uniforms.frameBufferTexture, 0);
+        gl.uniform1i(program.renderingData!.uniforms.emissiveTexture, DownsampleBlurProgram.UPDOWNSCALE_TEXTURE_START + DownsampleBlurProgram.UPDOWNSCALE_COUNT * 2 - 1);
     }
 
-    static writeBuffers(program: ShaderProgram, gl: WebGL2RenderingContext) {
-
-    }
-
-    static drawCall(program: ShaderProgram, gl: WebGL2RenderingContext) {   
-        program.renderer.processAntialiasing(program.renderer.savedBuffers[1].frameBuffer);
-        // render the cube with the texture we just rendered to
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
+    static drawCall(program: ShaderProgram) {
         program.drawTriangles(6, 0);
     }
 }

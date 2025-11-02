@@ -40,7 +40,7 @@ export class ShaderProgram3D {
     }
 
     frame(program: ShaderProgram, dt: number, program3d: ShaderProgram3D) {
-        program.gl.bindTexture(program.gl.TEXTURE_2D, program.renderingData.textures.modelViewMatrices);
+        program.gl.activeTexture(program.gl.TEXTURE0 + program3d.textureIndex);
 
         if (program3d.customFrame)
             program3d.customFrame(program, dt);
@@ -140,7 +140,7 @@ export class ShaderProgram3D {
                 matricesBuffer.push(...modelViewMat);
             });
 
-            gl.bindTexture(gl.TEXTURE_2D, program.renderingData.textures.modelViewMatrices);
+            gl.activeTexture(gl.TEXTURE0 + program3d.textureIndex);
 
             const width = 4 * Math.ceil(matricesBuffer.length / 4096);
             const height = matricesBuffer.length / (width * 4);

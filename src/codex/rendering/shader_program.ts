@@ -1,7 +1,7 @@
 import { mat4, vec3, vec4 } from "gl-matrix"
 import { LinkedList, LinkedListNode } from "../linked_list"
 import { createProjectionMatrix } from "../math"
-import { Renderer } from "./renderer"
+import { Renderer, SavedFrameBuffer } from "./renderer"
 
 
 export interface RenderableMesh {
@@ -28,7 +28,8 @@ export interface RenderingData {
     indexBuffer: WebGLBuffer,
     verticesCount: number,
     indicesCount: number,
-    vao: WebGLVertexArrayObject
+    vao: WebGLVertexArrayObject,
+    savedBuffers: SavedFrameBuffer[];
 }
 
 export type ShaderProgramFrame = (program: ShaderProgram, deltaTime: number) => void;
@@ -121,7 +122,8 @@ export class ShaderProgram {
             indexBuffer: indexBuffer,
             verticesCount: 0,
             indicesCount: 0,
-            vao: this.gl.createVertexArray()!
+            vao: this.gl.createVertexArray()!,
+            savedBuffers: []
         }
 
         this.gl.useProgram(program);
