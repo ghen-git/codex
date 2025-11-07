@@ -1,10 +1,11 @@
 import { quat, vec3, vec4 } from "gl-matrix";
-import { RenderableMesh } from "./shader_program";
-import { CodexRenderer } from "./codex_renderer";
-import { axisAngleToRotationMatrix, EPSILON, rotateVectorWithMatrix } from "../math";
-import { MeshBuilder } from "./meshes/mesh_builder";
+import { RenderableMesh } from "./../shader_program";
+import { CodexRenderer } from "./../codex_renderer";
+import { axisAngleToRotationMatrix, EPSILON, rotateVectorWithMatrix } from "../../math";
+import { MeshBuilder } from "./../meshes/mesh_builder";
+import { Polyline } from "./polyline";
 
-export class Polyline {
+export class PolylineMesh implements Polyline {
     colour: vec4;
     mesh: RenderableMesh;
     circles?: RenderableMesh;

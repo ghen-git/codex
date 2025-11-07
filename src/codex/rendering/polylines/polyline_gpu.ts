@@ -1,14 +1,14 @@
 import { quat, vec3, vec4 } from "gl-matrix";
-import { RenderableMesh } from "./shader_program";
-import { CodexRenderer } from "./codex_renderer";
-import { MeshBuilder } from "./meshes/mesh_builder";
+import { RenderableMesh } from "./../shader_program";
+import { CodexRenderer } from "./../codex_renderer";
+import { MeshBuilder } from "./../meshes/mesh_builder";
+import { Polyline } from "./polyline";
 
-export class PolylineGPU {
+export class PolylineGPU implements Polyline {
+    points: vec3[];
     colour: vec4;
     mesh: RenderableMesh;
-    circles?: RenderableMesh;
     thickness: number;
-    points: vec3[];
     render: boolean;
 
     constructor(points: vec3[], colour: vec4, thickness: number, render: boolean = false) {
@@ -101,7 +101,7 @@ export class PolylineGPU {
         MeshBuilder.flatColourVertices(this.mesh.vertices, this.colour);
     }
 
-    changePoints(points: vec3[]) {
+    public changePoints(points: vec3[]) {
         const keepVertices = points.length == this.points.length;
 
         this.points = points;

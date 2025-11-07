@@ -34,9 +34,9 @@ export class CodexRenderer {
 
         const renderer = Renderer.create(window, [
             CodexRenderer.meshes3DProgram,
-            CodexRenderer.meshes3DEmissiveProgram,
             CodexRenderer.lines3DProgram,
             CodexRenderer.nativeLinesProgram,
+            CodexRenderer.meshes3DEmissiveProgram,
             CodexRenderer.downsampleBlurProgram,
             CodexRenderer.upsampleBlurProgram,
             CodexRenderer.postProcessingProgram,

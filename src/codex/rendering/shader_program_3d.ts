@@ -129,13 +129,31 @@ export class ShaderProgram3D {
                     1, 0, 0, 0,
                     0, 1, 0, 0,
                     0, 0, 1, 0,
-                    mesh.data!.position[0] - program3d.cameraPosition[0], mesh.data!.position[1] - program3d.cameraPosition[1], mesh.data!.position[2] - program3d.cameraPosition[2], 1,
+                    mesh.data!.position[0], mesh.data!.position[1], mesh.data!.position[2], 1,
                 );
+
+                const cameraTranslationMat = mat4.fromValues(
+                    1, 0, 0, 0,
+                    0, 1, 0, 0,
+                    0, 0, 1, 0,
+                    -program3d.cameraPosition[0], -program3d.cameraPosition[1], -program3d.cameraPosition[2], 1,
+                ); 
 
                 const rotationMat = quaternionToRotationMatrix(mesh.data!.rotation);
 
                 mat4.mul(modelViewMat, modelViewMat, translationMat);
+                mat4.mul(modelViewMat, modelViewMat, cameraTranslationMat);
                 mat4.mul(modelViewMat, modelViewMat, rotationMat);
+
+                if(mesh.data!.pivot !== undefined) {
+                    const pivotMath = mat4.fromValues(
+                        1, 0, 0, 0,
+                        0, 1, 0, 0,
+                        0, 0, 1, 0,
+                        mesh.data!.pivot[0], mesh.data!.pivot[1], mesh.data!.pivot[2], 1,
+                    );
+                    mat4.mul(modelViewMat, modelViewMat, pivotMath);
+                }
 
                 matricesBuffer.push(...modelViewMat);
             });
