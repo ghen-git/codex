@@ -1,11 +1,11 @@
-import { quat, vec3, vec4 } from "gl-matrix";
+//@ts-expect-error
+import teapotObj from "./obj/teapot.obj?raw";
+
+import { vec3, vec4 } from "gl-matrix";
 import { Meshes3DProgram } from "./codex/rendering/codex_programs/meshes_3d";
 import { CodexRenderer } from "./codex/rendering/codex_renderer"
 import { MeshBuilder } from "./codex/rendering/meshes/mesh_builder";
-import { Polyline } from "./codex/rendering/polyline";
-import { axisAngleToQuat } from "./codex/math";
-//@ts-expect-error
-import teapotObj from "./obj/teapot.obj?raw";
+import { axisAngleToQuat, quatMul } from "./codex/math";
 import { RenderableMesh, ShaderProgram } from "./codex/rendering/shader_program";
 import { PolylineGroup } from "./codex/rendering/polyline_group";
 import { NativeLinesProgram } from "./codex/rendering/codex_programs/native_lines";
