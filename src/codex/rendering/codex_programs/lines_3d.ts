@@ -2,11 +2,12 @@ import { fragmentShader } from "./shaders/lines_3d/fragment";
 import { vertexShader } from "./shaders/lines_3d/vertex";
 import { ShaderProgram3D } from "../shader_program_3d";
 import { ShaderProgram } from "../shader_program";
+import { Camera } from "../codex_renderer";
 
 export class Lines3DProgram {
     static program3d: ShaderProgram3D;
 
-    public static create(window: Window) {
+    public static create(window: Window, camera: Camera) {
         const shaderProgram3d = new ShaderProgram3D(window, {
             vertexShaderSource: vertexShader,
             fragmentShaderSource: fragmentShader,
@@ -14,7 +15,7 @@ export class Lines3DProgram {
                 init: this.initBuffers,
                 write: this.writeBuffers
             }
-        }, 11);
+        }, 11, camera);
 
         Lines3DProgram.program3d = shaderProgram3d;
 

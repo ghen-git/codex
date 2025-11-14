@@ -22,9 +22,11 @@ void main() {
     // emissiveColour.rgb = superfastTanh(emissiveColour.rgb);
 
     vec4 hdrColour = vec4(frameBufferColour.rgb * frameBufferColour.a + emissiveColour.rgb, frameBufferColour.a + emissiveColour.a);
+
+    vec4 sdrColour = vec4(superfastTanh(hdrColour.rgb), hdrColour.a);
+
+    fragColor = sdrColour;
     
-    fragColor.rgb = superfastTanh(hdrColour.rgb);
-    // fragColor.rgb = hdrColour.rgb;
-    fragColor.a = hdrColour.a;
+    fragColor.rgb = hdrColour.rgb;
 }
 `;

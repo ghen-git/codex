@@ -180,7 +180,7 @@ export class Renderer {
         this.clearFrameBuffers();
 
         this.shaderPrograms.forEach(program => {
-            if (program.meshes.length > 0 || program.updateModelBuffers || program.updateVertexBuffers || program.forceFrame) {
+            if (program.meshes.length > 0 || program.updateModelBuffers || program.updateVertexBuffers || program.updateAdditionalBuffers || program.forceFrame) {
                 program.renderFrame()
             }
         });

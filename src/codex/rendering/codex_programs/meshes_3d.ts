@@ -3,11 +3,12 @@ import { vertexShader } from "./shaders/meshes_3d/vertex";
 import { ShaderProgram3D } from "../shader_program_3d";
 import { ShaderProgram } from "../shader_program";
 import { vec3 } from "gl-matrix";
+import { Camera } from "../codex_renderer";
 
 export class Meshes3DProgram {
     static program3d: ShaderProgram3D;
 
-    public static create(window: Window) {
+    public static create(window: Window, camera: Camera) {
         const shaderProgram3d = new ShaderProgram3D(window, {
             vertexShaderSource: vertexShader,
             fragmentShaderSource: fragmentShader,
@@ -20,7 +21,7 @@ export class Meshes3DProgram {
                 gl.bindFramebuffer(gl.FRAMEBUFFER, program.renderer.multisampleFrameBuffer);
                 gl.clear(gl.COLOR_BUFFER_BIT);
             }
-        }, 10);
+        }, 10, camera);
 
         Meshes3DProgram.program3d = shaderProgram3d;
 
@@ -40,7 +41,7 @@ export class Meshes3DProgram {
         if (program.updateVertexBuffers) {
             const normals: number[] = [];
 
-            program.meshes.forEach((mesh, meshIndex) => mesh.vertices.forEach(vertex => {
+            program.meshes.forEach((mesh) => mesh.vertices.forEach(vertex => {
                 if (vertex.data!.normal !== undefined) {
                     normals.push(...vertex.data!.normal);
                 }

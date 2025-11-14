@@ -8,6 +8,7 @@ in float aNormalDir;
 in vec4 aColour;
 in float aModelViewMatrixIndex;
 
+uniform mat4 uCameraMatrix;
 uniform mat4 uProjectionMatrix;
 uniform float uViewportRatio;
 uniform sampler2D uModelViewMatricesTexture;
@@ -24,9 +25,9 @@ void main() {
         getValueByIndexFromTexture(uModelViewMatricesTexture, int(aModelViewMatrixIndex) * 4 + 3)
     );
 
-    vec4 cameraPos = uProjectionMatrix * modelViewMatrix * aPosition;
-    vec4 prevPointCameraPos = uProjectionMatrix * modelViewMatrix * vec4(aPreviousPoint.x, aPreviousPoint.y, aPreviousPoint.z, 1);
-    vec4 nextPointCameraPos = uProjectionMatrix * modelViewMatrix * vec4(aNextPoint.x, aNextPoint.y, aNextPoint.z, 1);
+    vec4 cameraPos = uProjectionMatrix * uCameraMatrix * modelViewMatrix * aPosition;
+    vec4 prevPointCameraPos = uProjectionMatrix * uCameraMatrix * modelViewMatrix * vec4(aPreviousPoint.x, aPreviousPoint.y, aPreviousPoint.z, 1);
+    vec4 nextPointCameraPos = uProjectionMatrix * uCameraMatrix * modelViewMatrix * vec4(aNextPoint.x, aNextPoint.y, aNextPoint.z, 1);
 
     vec2 linePoint = vec2(cameraPos.x / cameraPos.w, cameraPos.y / cameraPos.w);
     vec2 prevLinePoint = vec2(prevPointCameraPos.x / cameraPos.w, prevPointCameraPos.y / cameraPos.w);

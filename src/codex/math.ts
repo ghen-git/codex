@@ -1,6 +1,11 @@
-import { mat4, quat, vec2, vec3, vec4 } from "gl-matrix";
+import { mat3, mat4, quat, vec2, vec3, vec4 } from "gl-matrix";
 
 export const EPSILON = 0.00001;
+
+export interface Basis {
+    forward: vec3,
+    up: vec3
+}
 
 /**
  * translates a rotation expressed in the axis angle format to
@@ -130,13 +135,13 @@ export function findBoundsOfPoints(points: vec2[]) {
     let minX = points[0][0], maxX = points[0][0], minY = points[0][1], maxY = points[0][1];
 
     points.forEach(p => {
-        if(p[0] < minX)
+        if (p[0] < minX)
             minX = p[0];
-        else if(p[0] > maxX)
+        else if (p[0] > maxX)
             maxX = p[0];
-        if(p[1] < minY)
+        if (p[1] < minY)
             minY = p[1];
-        else if(p[1] > maxY)
+        else if (p[1] > maxY)
             maxY = p[1];
     })
 
@@ -162,7 +167,7 @@ export function vecFrom2Points(p1: vec2, p2: vec2) {
 
 export function distance(v1: vec2, v2: vec2) {
     const diff = [v2[0] - v1[0], v2[1] - v1[1]];
-    return Math.sqrt(diff[0]*diff[0] + diff[1]*diff[1]);
+    return Math.sqrt(diff[0] * diff[0] + diff[1] * diff[1]);
 }
 
 export function rotate180(v: vec2) {
@@ -195,10 +200,10 @@ export function lerpVec4(p1: vec4, p2: vec4, t: number) {
 export function randomOrderArray(length: number) {
     const arr: any[] = [];
 
-    for(let i = 0; i < length; i++) 
+    for (let i = 0; i < length; i++)
         arr[i] = i;
 
-    for(let i = 0; i < length - 1; i++) {
+    for (let i = 0; i < length - 1; i++) {
         const target = randInt(i + 1, length - 1);
 
         const targetValue = arr[target];
@@ -226,4 +231,128 @@ export function createProjectionMatrix(width: number, height: number, fov: numbe
         (r + l) / (r - l), (t + b) / (t - b), -(far + near) / (far - near), -1,
         0.0, 0.0, -(2 * far * near) / (far - near), 0
     );
+}
+
+export function basisToRotationMat(basis: Basis) {
+    const right = vec3.cross(vec3.create(), basis.forward, basis.up);
+
+    const rotationMat = mat4.fromValues(
+        right[0], basis.up[0], basis.forward[0], 0,
+        right[1], basis.up[1], basis.forward[1], 0,
+        right[2], basis.up[2], basis.forward[2], 0,
+        0, 0, 0, 1,
+    );
+
+    return rotationMat
+}
+
+export function basisFromQuat(q: quat): Basis {
+    const forward = vec3.fromValues(0, 0, 1);
+    const up = vec3.fromValues(0, 1, 0);
+
+    const rotMat = quaternionToRotationMatrix(q);
+    vec3.transformMat4(forward, forward, rotMat);
+    vec3.transformMat4(up, up, rotMat);
+
+    return {
+        forward: forward,
+        up: up
+    }
+}
+
+export function basisFromPitchYaw(pitch: number, yaw: number): Basis {
+    const cosX = Math.cos(pitch), sinX = Math.sin(pitch);
+    const cosY = Math.cos(yaw), sinY = Math.sin(yaw);
+
+    const forward = vec3.fromValues(0, 0, 1);
+    const up = vec3.fromValues(0, 1, 0);
+
+    const xRot = mat3.fromValues(
+        1, 0, 0,
+        0, cosX, sinX,
+        0, -sinX, cosX
+    );
+
+    const yRot = mat3.fromValues(
+        cosY, 0, -sinY,
+        0, 1, 0,
+        sinY, 0, cosY
+    );
+
+    vec3.transformMat3(forward, forward, yRot);
+    vec3.transformMat3(forward, forward, xRot);
+    vec3.transformMat3(up, up, yRot);
+    vec3.transformMat3(up, up, xRot);
+
+    return {
+        forward: forward,
+        up: up
+    }
+}
+
+export function vecToBasis(v: vec3) {
+    const forward = vec3.normalize(vec3.create(), v);
+
+    let right: vec3;
+    if (Math.abs(forward[1]) > (1.0 - EPSILON))
+        right = vec3.cross(vec3.create(), forward, vec3.fromValues(0, 0, 1));
+    else
+        right = vec3.cross(vec3.create(), forward, vec3.fromValues(0, 1, 0));
+
+    const up = vec3.cross(vec3.create(), forward, right);
+
+    return {
+        forward: forward,
+        up: up
+    }
+}
+
+export function basisToQuaternion(basis: Basis) {
+    const right = vec3.cross(vec3.create(), basis.forward, basis.up);
+
+    const rotation = quat.create();
+    const m11 = basis.forward[0], m12 = basis.forward[1], m13 = basis.forward[2],
+        m21 = basis.up[0], m22 = basis.up[1], m23 = basis.up[2],
+        m31 = right[0], m32 = right[1], m33 = right[2],
+        trace = m11 + m22 + m33;
+
+    if (trace > 0) {
+
+        const s = 0.5 / Math.sqrt(trace + 1.0);
+
+        rotation[3] = 0.25 / s;
+        rotation[0] = -(m32 - m23) * s;
+        rotation[1] = -(m13 - m31) * s;
+        rotation[2] = -(m21 - m12) * s;
+
+    } else if (m11 > m22 && m11 > m33) {
+
+        const s = 2.0 * Math.sqrt(1.0 + m11 - m22 - m33);
+
+        rotation[3] = (m32 - m23) / s;
+        rotation[0] = -0.25 * s;
+        rotation[1] = -(m12 + m21) / s;
+        rotation[2] = -(m13 + m31) / s;
+
+    } else if (m22 > m33) {
+
+        const s = 2.0 * Math.sqrt(1.0 + m22 - m11 - m33);
+
+        rotation[3] = (m13 - m31) / s;
+        rotation[0] = -(m12 + m21) / s;
+        rotation[1] = -0.25 * s;
+        rotation[2] = -(m23 + m32) / s;
+
+    } else {
+
+        const s = 2.0 * Math.sqrt(1.0 + m33 - m11 - m22);
+
+        rotation[3] = (m21 - m12) / s;
+        rotation[0] = -(m13 + m31) / s;
+        rotation[1] = -(m23 + m32) / s;
+        rotation[2] = -0.25 * s;
+
+    }
+
+    return rotation;
 }

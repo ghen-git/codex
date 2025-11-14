@@ -49,7 +49,9 @@ export class PolylineNative implements Polyline {
             this.buildVerticesFromPoints();
         }
         else {
-
+            for(let i = 0; i < this.points.length; i++) {
+                this.mesh.vertices[i].position = this.points[i];
+            }
         }
 
         if (this.render)
@@ -60,10 +62,10 @@ export class PolylineNative implements Polyline {
         this.mesh.data!.lines = [];
         this.mesh.vertices = [];
 
-        this.mesh.vertices.push({ position: vec3.clone(this.points[0]) });
+        this.mesh.vertices.push({ position: this.points[0] });
 
         for (let i = 1; i < this.points.length; i++) {
-            this.mesh.vertices.push({ position: vec3.clone(this.points[i]) });
+            this.mesh.vertices.push({ position: this.points[i] });
 
             this.mesh.data!.lines.push([i-1, i]);
         }

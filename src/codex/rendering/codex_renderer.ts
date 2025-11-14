@@ -1,3 +1,4 @@
+import { mat4, quat, vec3 } from "gl-matrix";
 import { DownsampleBlurProgram } from "./codex_programs/downsample_blur";
 import { Lines3DProgram } from "./codex_programs/lines_3d";
 import { Meshes3DProgram } from "./codex_programs/meshes_3d";
@@ -8,11 +9,11 @@ import { UpsampleBlurProgram } from "./codex_programs/upsample_blur";
 import { Renderer } from "./renderer";
 import { ShaderProgram } from "./shader_program";
 
-/**
- * TEXTURE USAGES:
- * 
- * 0:
- */
+export interface Camera {
+    position: vec3,
+    rotation: quat,
+    rotationMat: mat4
+}
 
 export class CodexRenderer {
     public static meshes3DProgram: ShaderProgram;
@@ -22,12 +23,19 @@ export class CodexRenderer {
     public static downsampleBlurProgram: ShaderProgram;
     public static upsampleBlurProgram: ShaderProgram;
     public static postProcessingProgram: ShaderProgram;
+    public static camera: Camera;
 
     public static start(window: Window) {
-        CodexRenderer.meshes3DProgram = Meshes3DProgram.create(window);
-        CodexRenderer.meshes3DEmissiveProgram = Meshes3DEmissiveProgram.create(window);
-        CodexRenderer.lines3DProgram = Lines3DProgram.create(window);
-        CodexRenderer.nativeLinesProgram = NativeLinesProgram.create(window);
+        CodexRenderer.camera = {
+            position: vec3.fromValues(0, 0, 0),
+            rotation: quat.create(),
+            rotationMat: mat4.create()
+        };
+
+        CodexRenderer.meshes3DProgram = Meshes3DProgram.create(window, CodexRenderer.camera);
+        CodexRenderer.meshes3DEmissiveProgram = Meshes3DEmissiveProgram.create(window, CodexRenderer.camera);
+        CodexRenderer.lines3DProgram = Lines3DProgram.create(window, CodexRenderer.camera);
+        CodexRenderer.nativeLinesProgram = NativeLinesProgram.create(window, CodexRenderer.camera);
         CodexRenderer.downsampleBlurProgram = DownsampleBlurProgram.create(window);
         CodexRenderer.upsampleBlurProgram = UpsampleBlurProgram.create(window);
         CodexRenderer.postProcessingProgram = PostProcessingProgram.create(window);
@@ -43,5 +51,37 @@ export class CodexRenderer {
         ]);
 
         renderer!.start();
+    }
+
+    public static updateCamera() {
+        CodexRenderer.meshes3DProgram.updateAdditionalBuffers = true;
+        CodexRenderer.lines3DProgram.updateAdditionalBuffers = true;
+        CodexRenderer.nativeLinesProgram.updateAdditionalBuffers = true;
+        CodexRenderer.meshes3DEmissiveProgram.updateAdditionalBuffers = true;
+        
+        CodexRenderer.meshes3DProgram.additionalBuffersToUpdate[0] = true;
+        CodexRenderer.lines3DProgram.additionalBuffersToUpdate[0] = true;
+        CodexRenderer.nativeLinesProgram.additionalBuffersToUpdate[0] = true;
+        CodexRenderer.meshes3DEmissiveProgram.additionalBuffersToUpdate[0] = true;
+    }
+
+    public static updateVertexBuffers() {
+        CodexRenderer.meshes3DProgram.updateVertexBuffers = true;
+        CodexRenderer.lines3DProgram.updateVertexBuffers = true;
+        CodexRenderer.nativeLinesProgram.updateVertexBuffers = true;
+        CodexRenderer.meshes3DEmissiveProgram.updateVertexBuffers = true;
+        CodexRenderer.downsampleBlurProgram.updateVertexBuffers = true;
+        CodexRenderer.upsampleBlurProgram.updateVertexBuffers = true;
+        CodexRenderer.postProcessingProgram.updateVertexBuffers = true;
+    }
+
+    public static updateModelBuffers() {
+        CodexRenderer.meshes3DProgram.updateModelBuffers = true;
+        CodexRenderer.lines3DProgram.updateModelBuffers = true;
+        CodexRenderer.nativeLinesProgram.updateModelBuffers = true;
+        CodexRenderer.meshes3DEmissiveProgram.updateModelBuffers = true;
+        CodexRenderer.downsampleBlurProgram.updateModelBuffers = true;
+        CodexRenderer.upsampleBlurProgram.updateModelBuffers = true;
+        CodexRenderer.postProcessingProgram.updateModelBuffers = true;
     }
 }

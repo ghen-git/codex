@@ -3,27 +3,25 @@ import { vertexShader } from "./shaders/native_lines/vertex";
 import { ShaderProgram3D } from "../shader_program_3d";
 import { ShaderProgram } from "../shader_program";
 import { vec2 } from "gl-matrix";
+import { Camera } from "../codex_renderer";
 
 export class NativeLinesProgram {
     static program3d: ShaderProgram3D;
 
-    public static create(window: Window) {
+    public static create(window: Window, camera: Camera) {
         const shaderProgram3d = new ShaderProgram3D(window, {
             vertexShaderSource: vertexShader,
             fragmentShaderSource: fragmentShader,
             manualDrawCalls: this.nativeLinesDrawCall,
             customBuffers: {
-                init: this.initBuffers,
+                init: () => {},
                 write: this.writeBuffers
             }
-        }, 12);
+        }, 12, camera);
 
         NativeLinesProgram.program3d = shaderProgram3d;
 
         return shaderProgram3d.shaderProgram;
-    }
-
-    static initBuffers(program: ShaderProgram, gl: WebGL2RenderingContext) {
     }
 
     static writeBuffers(program: ShaderProgram, gl: WebGL2RenderingContext) {

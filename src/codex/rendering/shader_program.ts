@@ -68,6 +68,12 @@ export class ShaderProgram {
     settings: ShaderProgramSettings;
     updateModelBuffers: boolean = false;
     updateVertexBuffers: boolean = false;
+    /**
+     * every element of this array tells if a specific buffer should be updated. Set
+     * a value of the array to true to update the respective buffer
+    */
+    updateAdditionalBuffers: boolean = false;
+    additionalBuffersToUpdate: boolean[] = [false, false, false, false, false, false];
     forceFrame: boolean = false;
     drawToCanvas: boolean = false;
     // @ts-expect-error
@@ -204,11 +210,16 @@ export class ShaderProgram {
 
         this.gl.bindVertexArray(this.renderingData.vao);
 
-        if (this.updateModelBuffers || this.updateVertexBuffers) {
+        if (this.updateModelBuffers || this.updateVertexBuffers || this.updateAdditionalBuffers) {
             this.writeBuffers();
 
             this.updateModelBuffers = false;
             this.updateVertexBuffers = false;
+
+            if(this.updateAdditionalBuffers)
+                for(let i = 0; i < this.additionalBuffersToUpdate.length; i++)
+                    this.additionalBuffersToUpdate[i] = false;
+            this.updateAdditionalBuffers = false;
         }
 
         // const arrBuffer = new ArrayBuffer(

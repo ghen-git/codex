@@ -1,18 +1,19 @@
 import { mat4, vec3 } from "gl-matrix";
 import { AdditionalBuffers, ShaderProgram, ShaderProgramFrame, ShaderProgramSettings } from "./shader_program"
 import { createProjectionMatrix, quaternionToRotationMatrix } from "../math";
+import { Camera } from "./codex_renderer";
 
 export class ShaderProgram3D {
     public shaderProgram: ShaderProgram;
-    public cameraPosition: vec3;
     private lightDirection: vec3;
     private customFrame?: ShaderProgramFrame;
     customBuffers: AdditionalBuffers | undefined;
     private textureIndex: number;
+    public camera: Camera;
 
-    constructor(window: Window, settings: ShaderProgramSettings, textureIndex: number) {
+    constructor(window: Window, settings: ShaderProgramSettings, textureIndex: number, camera: Camera) {
         this.customBuffers = settings.customBuffers;
-        this.cameraPosition = [0, 0, 0];
+        this.camera = camera;
         this.lightDirection = [0, 0, 0];
         this.textureIndex = textureIndex;
 
@@ -46,14 +47,6 @@ export class ShaderProgram3D {
             program3d.customFrame(program, dt);
     }
 
-    public moveCameraBy(offset: vec3) {
-        vec3.add(this.cameraPosition, this.cameraPosition, offset);
-    }
-
-    public moveCameraTo(position: vec3) {
-        this.cameraPosition = position;
-    }
-
     updateProjectionMatrix(program: ShaderProgram, gl: WebGL2RenderingContext, newWidth: number, newHeight: number) {
         program.renderingData.projection = createProjectionMatrix(newWidth, newHeight, 70, 0.01, 10000);
         gl.useProgram(program.renderingData.program);
@@ -77,11 +70,11 @@ export class ShaderProgram3D {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
-        program.renderingData.uniforms.modelViewMatricesTexture = gl.getUniformLocation(program.renderingData.program, "uModelViewMatricesTexture");
-        program.renderingData.uniforms.lightDirection = gl.getUniformLocation(program.renderingData.program, "uLightDirection");
+        program.renderingData.uniforms.modelViewMatricesTexture = gl.getUniformLocation(innerProgram, "uModelViewMatricesTexture");
+        program.renderingData.uniforms.lightDirection = gl.getUniformLocation(innerProgram, "uLightDirection");
+        program.renderingData.uniforms.cameraMatrix = gl.getUniformLocation(innerProgram, "uCameraMatrix");
 
         program.renderingData.textures.modelViewMatrices = modelViewMatricesTexture;
-
 
         this.lightDirection = vec3.fromValues(-0.5, 1, -0.5);
         vec3.normalize(this.lightDirection, this.lightDirection);
@@ -132,20 +125,11 @@ export class ShaderProgram3D {
                     mesh.data!.position[0], mesh.data!.position[1], mesh.data!.position[2], 1,
                 );
 
-                const cameraTranslationMat = mat4.fromValues(
-                    1, 0, 0, 0,
-                    0, 1, 0, 0,
-                    0, 0, 1, 0,
-                    -program3d.cameraPosition[0], -program3d.cameraPosition[1], -program3d.cameraPosition[2], 1,
-                ); 
-
                 const rotationMat = quaternionToRotationMatrix(mesh.data!.rotation);
 
                 mat4.mul(modelViewMat, modelViewMat, translationMat);
-                mat4.mul(modelViewMat, modelViewMat, cameraTranslationMat);
                 mat4.mul(modelViewMat, modelViewMat, rotationMat);
-
-                if(mesh.data!.pivot !== undefined) {
+                if (mesh.data!.pivot !== undefined) {
                     const pivotMath = mat4.fromValues(
                         1, 0, 0, 0,
                         0, 1, 0, 0,
@@ -163,9 +147,26 @@ export class ShaderProgram3D {
             const width = 4 * Math.ceil(matricesBuffer.length / 4096);
             const height = matricesBuffer.length / (width * 4);
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, width, height, 0, gl.RGBA, gl.FLOAT, new Float32Array(matricesBuffer));
-
-            if (this.customBuffers !== undefined)
-                this.customBuffers.write(this.shaderProgram, this.shaderProgram.gl);
         }
+
+        if (program.additionalBuffersToUpdate[0]) {
+            const cameraMatrix = mat4.create();
+
+            const cameraTranslationMat = mat4.fromValues(
+                1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, 1, 0,
+                -program3d.camera.position[0], -program3d.camera.position[1], -program3d.camera.position[2], 1,
+            );
+            const cameraRotationMat = program3d.camera.rotationMat;
+
+            mat4.mul(cameraMatrix, cameraMatrix, cameraRotationMat);
+            mat4.mul(cameraMatrix, cameraMatrix, cameraTranslationMat);
+
+            gl.uniformMatrix4fv(program.renderingData.uniforms.cameraMatrix, false, cameraMatrix);
+        }
+
+        if (this.customBuffers !== undefined)
+            this.customBuffers.write(this.shaderProgram, this.shaderProgram.gl);
     }
 }
