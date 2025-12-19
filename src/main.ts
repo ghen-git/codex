@@ -11,6 +11,7 @@ import { PolylineType } from "./codex/rendering/polylines/polyline";
 import { PolylineNative } from "./codex/rendering/polylines/polyline_native";
 import { MediapipeTracker } from "./codex/hand_tracking/mediapipe_tracker";
 import { Finger, Hand, Hands } from "./codex/hand_tracking/hand_processing/hand_types";
+import { transformHandsCoords } from "./codex/hand_tracking/hand_processing/hand_resizing";
 
 const rotatingMeshes: RenderableMesh[] = [];
 
@@ -108,7 +109,7 @@ let boxPolylineGroup: PolylineGroup;
 async function setupHands() {
     const handColour: vec4 = [0.5, 1, 1, 1];
     const boxColour: vec4 = [1, 1, 1, 1];
-    turnColourNeon(handColour, 5.0)
+    turnColourNeon(handColour, 1.0)
     turnColourNeon(boxColour, 1.0)
     leftThumb = new PolylineNative([], handColour, true);
     leftIndex = new PolylineNative([], handColour, true);
@@ -132,59 +133,11 @@ async function setupHands() {
     CodexRenderer.nativeLinesProgram.renderMesh(boxPolylineGroup.mesh);
 
     const tracker = await MediapipeTracker.create((hands: Hands) => {
+        console.log('hey');
         transformHandsCoords(hands);
         handsFrame(hands);
     }, window, false);
     tracker.start();
-}
-
-function transformHandsCoords(rawHands: Hands) {
-    if (rawHands.leftIsTracked)
-        transformHandCoords(rawHands.left!);
-    if (rawHands.rightIsTracked)
-        transformHandCoords(rawHands.right!);
-}
-
-function transformHandCoords(rawHand: Hand) {
-    let zOffset = 0;
-    // zOffset += vec3.length(vec3.sub(vec3.create(), rawHand.thumb.metacarpal, rawHand.wrist));
-    // zOffset += vec3.length(vec3.sub(vec3.create(), rawHand.index.metacarpal, rawHand.wrist));
-    zOffset += vec3.length(vec3.sub(vec3.create(), rawHand.middle.metacarpal, rawHand.wrist));
-    // zOffset += vec3.length(vec3.sub(vec3.create(), rawHand.ring.metacarpal, rawHand.wrist));
-    // zOffset += vec3.length(vec3.sub(vec3.create(), rawHand.pinky.metacarpal, rawHand.wrist));
-
-    // zOffset /= 5;
-
-    zOffset -= 0.15;
-
-    transformFingerCoords(rawHand.thumb, zOffset);
-    transformFingerCoords(rawHand.index, zOffset);
-    transformFingerCoords(rawHand.middle, zOffset);
-    transformFingerCoords(rawHand.ring, zOffset);
-    transformFingerCoords(rawHand.pinky, zOffset);
-    transformHandPointCoord(rawHand.wrist, zOffset);
-}
-
-function transformFingerCoords(rawFinger: Finger, zOffset: number) {
-    transformHandPointCoord(rawFinger.metacarpal, zOffset);
-    transformHandPointCoord(rawFinger.proximal, zOffset);
-    transformHandPointCoord(rawFinger.middle, zOffset);
-    transformHandPointCoord(rawFinger.tip, zOffset);
-}
-
-function transformHandPointCoord(v: vec3, zOffset: number) {
-    v[0] -= 0.5;
-    v[1] = -v[1];
-    v[1] += 0.5;
-    v[2] *= 2;
-
-    vec3.scale(v, v, (0.15 / (0.15 + zOffset)));
-
-    vec3.scale(v, v, 10);
-    
-    v[2] -= zOffset * 30;
-
-    v[2] += 5;
 }
 
 function renderObj() {
@@ -253,10 +206,10 @@ function turnColourNeon(colour: vec4, intensity: number = 1.0) {
     colour[2] = colour[2] * 1.5 * intensity;
 }
 
-let pitchProgress = 0;
-let yawProgress = 0;
+let pitchProgress = -0.5;
+let yawProgress = 0.5;
 const movementStrength = 0.01;
-let zoom = 10;
+let zoom = 30;
 
 function moveRotation(event: MouseEvent) {
     if (event.buttons == 1) {
