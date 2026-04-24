@@ -22,7 +22,8 @@ void main() {
     );
 
     gl_Position = uProjectionMatrix * uCameraMatrix * modelViewMatrix * aPosition;
-    vColour = aColour;
+    float depthFog = clamp(1.0 / (gl_Position.w) * 5.0, 0.1, 1.0);
+    vColour = aColour * depthFog;
 }
 
 vec4 getValueByIndexFromTexture(sampler2D tex, int index) {

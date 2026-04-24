@@ -8,7 +8,6 @@ import { Polyline } from "./polyline";
 export class PolylineNative implements Polyline {
     colour: vec4;
     mesh: RenderableMesh;
-    circles?: RenderableMesh;
     thickness: number;
     points: vec3[];
     render: boolean;

@@ -109,7 +109,7 @@ let boxPolylineGroup: PolylineGroup;
 async function setupHands() {
     const handColour: vec4 = [0.5, 1, 1, 1];
     const boxColour: vec4 = [1, 1, 1, 1];
-    turnColourNeon(handColour, 1.0)
+    turnColourNeon(handColour, 3.0)
     turnColourNeon(boxColour, 1.0)
     leftThumb = new PolylineNative([], handColour, true);
     leftIndex = new PolylineNative([], handColour, true);
