@@ -37,10 +37,14 @@ interface GridChunk {
 
 const gridChunks: GridChunk[] = [];
 
-const chunkVerticesNumber = 256;
-const squareSize = 0.5;
-const heightScale = 0.001;
 const tileSize = 256;
+const zoomLevel = 16;
+const tilesToLoadSide = 3;
+const tileSizeMeters = 611.4962158203125 * 2;
+
+const chunkVerticesNumber = 256;
+const squareSize = tileSizeMeters / tileSize;
+const heightScale = squareSize * 1.4;
 const gridColour: vec4 = [0.5, 1, 1, 1];
 turnColourNeon(gridColour, 1)
 
@@ -52,18 +56,72 @@ async function renderObj() {
         locateFile: () => lercWasmURL
     });
 
-    const zoom = 1;
 
-    for(let i = 0; i < zoom * 2; i++) {
-        for(let j = 0; j < zoom * 2; j++) {
-            loadTile(i, j, zoom);
+    const tileIndex = degrees2tile(0, 0, zoomLevel);
+    tileIndex[0] = Math.floor(tileIndex[0]);
+    tileIndex[1] = Math.floor(tileIndex[1]);
+    
+    placeBeacon(0, 0, tileIndex);
+    // placeBeacon(0, 0, tileIndex);
+    // placeBeacon(0, 0, tileIndex);
+    // placeBeacon(0, 0, tileIndex);
+    // placeBeacon(0, 0, tileIndex);
+    // placeBeacon(0, 0, tileIndex);
+    // placeBeacon(0, 0, tileIndex);
+    // placeBeacon(0, 0, tileIndex);
+    // placeBeacon(0, 0, tileIndex);
+    // placeBeacon(0, 0, tileIndex);
+    // placeBeacon(0, 0, tileIndex);
+    // placeBeacon(0, 0, tileIndex);
+
+    console.log(squareSize);
+
+
+    for (let i = 0; i < tilesToLoadSide * 2 + 1; i++) {
+        for (let j = 0; j < tilesToLoadSide * 2 + 1; j++) {
+            loadTile(tileIndex[0] + i - tilesToLoadSide, tileIndex[1] + j - tilesToLoadSide, i, j, zoomLevel);
+            // tile2degrees(tileIndex[0] + i - startOffset, tileIndex[1] + j - startOffset);
         }
     }
 }
 
-async function loadTile(xIndex: number, yIndex: number, zoom: number) {
-    const xOffset = xIndex * tileSize;
-    const yOffset = yIndex * tileSize;
+let lastBeaconPos: vec2 = vec2.create();
+
+function placeBeacon(lat: number, lon: number, centerTileIndex: vec2) {
+    const tileIndex = degrees2tile(lat, lon, zoomLevel);
+
+    const tileOffsetX = tileIndex[0] % 1;
+    const tileOffsetY = tileIndex[1] % 1;
+    tileIndex[0] = Math.floor(tileIndex[0]) - centerTileIndex[0];
+    tileIndex[1] = Math.floor(tileIndex[1]) - centerTileIndex[1];
+    
+    const tileOffsetXMeters = ((tileOffsetX + tilesToLoadSide + tileIndex[0]) * 256) * squareSize;
+    const tileOffsetYMeters = ((tileOffsetY + tilesToLoadSide + tileIndex[1]) * -256) * squareSize;
+
+    console.log(vec2.dist(lastBeaconPos, [tileOffsetXMeters, tileOffsetYMeters]));
+
+    const pointer = new PolylineNative([[tileOffsetXMeters, -500, tileOffsetYMeters], [tileOffsetXMeters, 1000, tileOffsetYMeters]], [10, 0, 0, 1], true);
+    lastBeaconPos = [tileOffsetXMeters, tileOffsetYMeters];
+}
+
+function tile2degrees(x: number, y: number, zoom = 16) {
+    const n = Math.PI - 2 * Math.PI * y / (1 << zoom);
+    const lat = 180 / Math.PI * Math.atan(0.5 * (Math.exp(n) - Math.exp(-n)));
+    const lon = x / (1 << zoom) * 360 - 180;
+    
+    console.log(x, y, lat, lon);
+}
+
+
+function degrees2tile(lat: number, lon: number, zoom = 16): vec2 {
+    const x = (lon + 180) / 360 * (1 << zoom);
+    const y = (1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * (1 << zoom);
+    return [x, y];
+}
+
+async function loadTile(xIndex: number, yIndex: number, xTileOffset: number, yTileOffset: number, zoom: number) {
+    const xOffset = xTileOffset * tileSize;
+    const yOffset = yTileOffset * tileSize;
 
     const url = `https://elevation3d.arcgis.com/arcgis/rest/services/WorldElevation3D/Terrain3D/ImageServer/tile/${zoom}/${yIndex}/${xIndex}`;
 
@@ -81,7 +139,6 @@ async function loadTile(xIndex: number, yIndex: number, zoom: number) {
     }
 }
 
-
 function changeHeightAtPos(x: number, y: number, height: number) {
     const baseChunkX = Math.floor(x / (chunkVerticesNumber - 1));
     const baseChunkY = Math.floor(y / (chunkVerticesNumber - 1));
@@ -90,43 +147,43 @@ function changeHeightAtPos(x: number, y: number, height: number) {
     let yInChunk = y % (chunkVerticesNumber - 1);
 
     // adjustment for the way the Javascript mod operator works (https://web.archive.org/web/20090717035140if_/javascript.about.com/od/problemsolving/a/modulobug.htm)
-    if(x < 0)
+    if (x < 0)
         xInChunk = (xInChunk + (chunkVerticesNumber - 1)) % (chunkVerticesNumber - 1);
-    if(y < 0)
+    if (y < 0)
         yInChunk = (yInChunk + (chunkVerticesNumber - 1)) % (chunkVerticesNumber - 1);
 
     changeHeightInChunk(baseChunkX, baseChunkY, xInChunk, yInChunk, height);
 
-    if(xInChunk == chunkVerticesNumber - 1)
+    if (xInChunk == chunkVerticesNumber - 1)
         changeHeightInChunk(baseChunkX + 1, baseChunkY, 0, yInChunk, height);
-    if(yInChunk == chunkVerticesNumber - 1)
+    if (yInChunk == chunkVerticesNumber - 1)
         changeHeightInChunk(baseChunkX, baseChunkY + 1, xInChunk, 0, height);
 
-    if(xInChunk == 0)
+    if (xInChunk == 0)
         changeHeightInChunk(baseChunkX - 1, baseChunkY, chunkVerticesNumber - 1, yInChunk, height);
-    if(yInChunk == 0)
+    if (yInChunk == 0)
         changeHeightInChunk(baseChunkX, baseChunkY - 1, xInChunk, chunkVerticesNumber - 1, height);
 
-    if(xInChunk == chunkVerticesNumber - 1 && yInChunk == chunkVerticesNumber - 1)
+    if (xInChunk == chunkVerticesNumber - 1 && yInChunk == chunkVerticesNumber - 1)
         changeHeightInChunk(baseChunkX + 1, baseChunkY + 1, 0, 0, height);
-    if(xInChunk == 0 && yInChunk == 0)
+    if (xInChunk == 0 && yInChunk == 0)
         changeHeightInChunk(baseChunkX - 1, baseChunkY - 1, chunkVerticesNumber - 1, chunkVerticesNumber - 1, height);
 }
 
 function changeHeightInChunk(chunkX: number, chunkY: number, x: number, y: number, height: number, createChunkIfNotPresent = true) {
     const chunkId = getChunkId(chunkX, chunkY);
 
-    if(gridChunks[chunkId] === undefined) {
-        if(!createChunkIfNotPresent)
+    if (gridChunks[chunkId] === undefined) {
+        if (!createChunkIfNotPresent)
             return;
-        
+
         initChunk(chunkX, chunkY);
     }
 
     const chunk = gridChunks[chunkId];
     const vertices = chunk.wireframe.getVertices();
 
-    
+
     vertices[y * chunkVerticesNumber + x][1] = height;
     chunk.wireframe.scheduleUpdate();
 }
@@ -181,13 +238,13 @@ function buildChunkWireframe(verticesNumber: number, squareSize: number, colour:
 }
 
 let cameraYaw = Math.PI;
-let cameraPitch = 0;
+let cameraPitch = -Math.PI / 4;
 const pivot = vec3.create();
 let pivotDeltaX = 0;
 let pivotDeltaZ = 0;
-const zoomStrength = 0.05;
-const movementStrength = 0.1;
-let zoom = 10;
+const zoomStrength = 0.5;
+const movementStrength = 1;
+let zoom = 1000;
 
 
 function moveRotation(event: MouseEvent) {
@@ -195,7 +252,7 @@ function moveRotation(event: MouseEvent) {
         cameraYaw += event.movementX * 0.01;
         cameraPitch -= event.movementY * 0.01;
     }
-    if(event.buttons == 2) {
+    if (event.buttons == 2) {
         pivotDeltaX += event.movementX * movementStrength;
         pivotDeltaZ += event.movementY * movementStrength;
     }
