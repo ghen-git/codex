@@ -9,7 +9,8 @@ export function transformHandsCoords(rawHands: Hands) {
 }
 
 export function transformHandCoords(rawHand: Hand) {
-    const scalingFactor = vec3.distance(rawHand.wrist, rawHand.middle.metacarpal) - defaultDistance;
+    const scaledDistance = vec3.distance(rawHand.wrist, rawHand.middle.metacarpal) - defaultDistance;
+    const scalingFactor = (defaultDistance / (defaultDistance + scaledDistance));
 
     transformFingerCoords(rawHand.thumb, rawHand, scalingFactor);
     transformFingerCoords(rawHand.index, rawHand, scalingFactor);
@@ -66,10 +67,9 @@ function transformHandPointCoord(v: vec3, scalingFactor: number) {
     v[1] += 0.5;
     v[2] *= 2;
 
-    vec3.scale(v, v, (defaultDistance / (defaultDistance + scalingFactor)));
+    vec3.scale(v, v, scalingFactor);
+    v[2] += scalingFactor;
+
     vec3.scale(v, v, 10);
 
-    v[2] -= scalingFactor * 30;
-
-    v[2] += 5;
 }

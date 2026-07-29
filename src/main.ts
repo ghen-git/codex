@@ -1,6 +1,3 @@
-//@ts-expect-error
-import tizianoObj from "./obj/UELAGIOVACOMEOUMA.obj?raw";
-
 import { vec3, vec4 } from "gl-matrix";
 import { CodexRenderer } from "./codex/rendering/codex_renderer"
 import { MeshBuilder } from "./codex/rendering/meshes/mesh_builder";
@@ -143,15 +140,15 @@ async function setupHands() {
 function renderObj() {
     // MeshBuilder.overrideColourWithRandomColours = true;
 
-    const teapot = MeshBuilder.parseObj(tizianoObj);
+    // const teapot = MeshBuilder.parseObj(tizianoObj);
     const teapotColour: vec4 = [1, 0, 0, 1];
     const wireframeColour: vec4 = [1, 0, 0, 1];
     // turnColourNeon(teapotColour, 0.5);
     turnColourNeon(wireframeColour, 0.5);
-    MeshBuilder.flatColourVertices(teapot.vertices, teapotColour);
-    const wireframe = buildWireframe(teapot, wireframeColour);
-
-    MeshBuilder.computeNormalsFromTriangles(teapot);
+    // MeshBuilder.flatColourVertices(teapot.vertices, teapotColour);
+    // const wireframe = buildWireframe(teapot, wireframeColour);
+// 
+    // MeshBuilder.computeNormalsFromTriangles(teapot);
     // MeshBuilder.computeNormalsFromTriangles(wireframe.mesh);
 
     const gridWidth = 7.5;
@@ -159,26 +156,26 @@ function renderObj() {
 
     for (let i = 0; i < gridCount; i++) {
         for (let j = 0; j < gridCount; j++) {
-            const teapotClone = MeshBuilder.cloneMesh(teapot);
-            const wireframeClone = MeshBuilder.cloneMesh(wireframe.mesh);
+            // const teapotClone = MeshBuilder.cloneMesh(teapot);
+            // const wireframeClone = MeshBuilder.cloneMesh(wireframe.mesh);
 
-            teapotClone.data!.position[0] += (j * gridWidth) - (gridWidth * (gridCount / 2)) + gridWidth / 2;
-            teapotClone.data!.position[2] += (i * gridWidth) - (gridWidth * (gridCount / 2)) + gridWidth / 2;
+            // teapotClone.data!.position[0] += (j * gridWidth) - (gridWidth * (gridCount / 2)) + gridWidth / 2;
+            // teapotClone.data!.position[2] += (i * gridWidth) - (gridWidth * (gridCount / 2)) + gridWidth / 2;
 
             // CodexRenderer.meshes3DProgram.renderMesh(teapotClone);
             // CodexRenderer.nativeLinesProgram.renderMesh(wireframeClone);
 
-            wireframeClone.data!.position[0] += (j * gridWidth) - (gridWidth * (gridCount / 2)) + gridWidth / 2;
-            wireframeClone.data!.position[2] += (i * gridWidth) - (gridWidth * (gridCount / 2)) + gridWidth / 2;
+            // wireframeClone.data!.position[0] += (j * gridWidth) - (gridWidth * (gridCount / 2)) + gridWidth / 2;
+            // wireframeClone.data!.position[2] += (i * gridWidth) - (gridWidth * (gridCount / 2)) + gridWidth / 2;
 
-            teapotClone.data!.pivot = [-9, 0, 0];
-            wireframeClone.data!.pivot = [-9, 0, 0];
+            // teapotClone.data!.pivot = [-9, 0, 0];
+            // wireframeClone.data!.pivot = [-9, 0, 0];
 
-            wireframeClone.data!.rotation = axisAngleToQuat([0, 1, 0, -Math.PI / 2]);
+            // wireframeClone.data!.rotation = axisAngleToQuat([0, 1, 0, -Math.PI / 2]);
 
             // rotatingMeshes.push(teapotClone);
-            rotatingMeshes.push(wireframeClone);
-            console.log(wireframeClone);
+            // rotatingMeshes.push(wireframeClone);
+            // console.log(wireframeClone);
         }
     }
 
